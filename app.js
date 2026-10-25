@@ -228,6 +228,899 @@ function formatArabicDate(timestamp) {
     minute: "2-digit"
   });
 }
+/* ==========================================================================
+   غرفة العمليات المركزية — شبكة البوصلة الإخبارية (RAWI-YE.COM)
+   المحرك البرمجي (app.js) — الجزء الثاني: إدارة المنشورات، المحرر، المراجعة، والعواجل
+   ========================================================================== */
+
+// ==================== 10. تحديث قوائم البوصلات والكتّاب في الفلاتر والمحرر ====================
+function getActiveCompassesList() {
+  return [...state.compasses].sort((a, b) => (a.order || 99) - (b.order || 99));
+}
+
+function getPostCompasses(post) {
+  const list = [];
+  if (Array.isArray(post.categories)) list.push(...post.categories);
+  if (post.category && !list.includes(post.category)) list.push(post.category);
+  if (post.compassId && !list.includes(post.compassId)) list.push(post.compassId);
+  return list.length ? list : ["بوصلة السياسة اليمنية"];
+}
+
+function isBreakingStillActive(post) {
+  if (!post || !post.isBreaking) return false;
+  const now = Date.now();
+  if (post.breakingExpiresAt) {
+    const exp =
+      typeof post.breakingExpiresAt === "number"
+        ? post.breakingExpiresAt
+        : new Date(post.breakingExpiresAt).getTime();
+    if (exp && now > exp) return false;
+  } else if (post.breakingDurationHours) {
+    const createdMs = getPostTimestampMs(post);
+    const durationMs = Number(post.breakingDurationHours) * 3600 * 1000;
+    if (createdMs && durationMs > 0 && now > createdMs + durationMs) return false;
+  }
+  return true;
+}
+
+function populateCompassSelectorsAndFilters() {
+  const compasses = getActiveCompassesList();
+
+  // 1. فلتر البوصلات في لوحة المتابعة
+  const filterCompass = document.getElementById("ops-filter-compass");
+  if (filterCompass) {
+    const currentVal = filterCompass.value || "all";
+    filterCompass.innerHTML = [
+      `<option value="all">جميع البوصلات والأقسام</option>`,
+      ...compasses.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`)
+    ].join("");
+    filterCompass.value = currentVal;
+  }
+
+  // 2. قائمة البوصلات في نافذة الخبر العاجل السريع
+  const quickCompass = document.getElementById("quick-news-compass");
+  if (quickCompass) {
+    quickCompass.innerHTML = compasses
+      .map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`)
+      .join("");
+  }
+
+  // 3. شبكة الاختيار المتعدد للبوصلات داخل محرر المقالات
+  const multiGrid = document.getElementById("multi-compass-selector");
+  if (multiGrid) {
+    const currentlyChecked = Array.from(
+      multiGrid.querySelectorAll('input[name="post-compass-item"]:checked')
+    ).map((el) => el.value);
+
+    multiGrid.innerHTML = compasses
+      .map((c, idx) => {
+        const isChecked = currentlyChecked.length
+          ? currentlyChecked.includes(c.name)
+          : idx === 0;
+        return `
+          <label class="compass-check-item">
+            <input type="checkbox" name="post-compass-item" value="${escapeHtml(c.name)}" ${
+              isChecked ? "checked" : ""
+            }>
+            <span class="material-symbols-rounded" style="font-size:17px;color:${
+              c.color || "var(--primary)"
+            };" translate="no">${c.icon || "explore"}</span>
+            <span>${escapeHtml(c.name)}</span>
+          </label>
+        `;
+      })
+      .join("");
+  }
+
+  // 4. قائمة الاقتراحات للفئات الفرعية (Datalist)
+  const subDatalist = document.getElementById("subcategories-datalist");
+  if (subDatalist) {
+    const allSubs = new Set();
+    compasses.forEach((c) => {
+      if (Array.isArray(c.subcategories)) {
+        c.subcategories.forEach((s) => allSubs.add(s));
+      }
+    });
+    subDatalist.innerHTML = Array.from(allSubs)
+      .map((s) => `<option value="${escapeHtml(s)}"></option>`)
+      .join("");
+  }
+}
+
+function populateAuthorFilterDropdown() {
+  const authorSelect = document.getElementById("ops-filter-author");
+  if (!authorSelect) return;
+
+  const currentVal = authorSelect.value || "all";
+  const authorsSet = new Set();
+
+  state.staff.forEach((s) => {
+    if (s.name) authorsSet.add(s.name);
+  });
+  state.posts.forEach((p) => {
+    if (p.author) authorsSet.add(p.author);
+  });
+
+  authorSelect.innerHTML = [
+    `<option value="all">جميع الكتّاب</option>`,
+    ...Array.from(authorsSet).map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+  ].join("");
+  authorSelect.value = currentVal;
+}
+
+// ==================== 11. لوحة المتابعة، الإحصائيات السرية، وفلترة المنشورات ====================
+function updateDashboardStats() {
+  const publishedCount = state.posts.filter(
+    (p) => !p.status || p.status === "published"
+  ).length;
+  const reviewCount = state.posts.filter(
+    (p) => p.status === "review" || p.status === "pending"
+  ).length;
+  const breakingCount = state.posts.filter(
+    (p) => (!p.status || p.status === "published") && (isBreakingStillActive(p) || p.isQuickNews)
+  ).length;
+  const totalViews = state.posts.reduce((acc, p) => acc + (Number(p.views) || 0), 0);
+
+  const setTxt = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = Number(val).toLocaleString("ar-YE");
+  };
+
+  setTxt("stat-published-count", publishedCount);
+  setTxt("stat-review-count", reviewCount);
+  setTxt("stat-breaking-count", breakingCount);
+  setTxt("stat-total-views", totalViews);
+}
+
+function renderOpsPostsList() {
+  const listEl = document.getElementById("ops-posts-list");
+  if (!listEl) return;
+
+  updateDashboardStats();
+
+  const searchQ = (document.getElementById("ops-posts-search")?.value || "").trim().toLowerCase();
+  const statusFilter = document.getElementById("ops-filter-status")?.value || "all";
+  const compassFilter = document.getElementById("ops-filter-compass")?.value || "all";
+  const authorFilter = document.getElementById("ops-filter-author")?.value || "all";
+
+  let filtered = [...state.posts];
+
+  // إذا كان المستخدم كاتباً عادياً (وليس محرراً أو مديراً)، يرى مقالاته أو المقالات العامة
+  if (!isUserEditorOrAdmin() && state.userProfile) {
+    const myEmail = (state.userProfile.email || "").toLowerCase();
+    const myName = state.userProfile.name || "";
+    filtered = filtered.filter(
+      (p) =>
+        (p.authorEmail && p.authorEmail.toLowerCase() === myEmail) ||
+        p.author === myName ||
+        !p.status ||
+        p.status === "published"
+    );
+  }
+
+  if (statusFilter !== "all") {
+    if (statusFilter === "published") {
+      filtered = filtered.filter((p) => !p.status || p.status === "published");
+    } else if (statusFilter === "review") {
+      filtered = filtered.filter((p) => p.status === "review" || p.status === "pending");
+    } else if (statusFilter === "draft") {
+      filtered = filtered.filter((p) => p.status === "draft");
+    } else if (statusFilter === "breaking") {
+      filtered = filtered.filter((p) => isBreakingStillActive(p) || p.isQuickNews);
+    }
+  }
+
+  if (compassFilter !== "all") {
+    filtered = filtered.filter((p) => getPostCompasses(p).includes(compassFilter));
+  }
+
+  if (authorFilter !== "all") {
+    filtered = filtered.filter((p) => p.author === authorFilter);
+  }
+
+  if (searchQ) {
+    filtered = filtered.filter((p) => {
+      const hay = `${p.title || ""} ${p.summary || ""} ${p.author || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
+      return hay.includes(searchQ);
+    });
+  }
+
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="empty-state">لا توجد منشورات تطابق خيارات الفلترة الحالية.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = filtered
+    .map((post) => {
+      const status = post.status || "published";
+      let statusBadgeHtml = `<span class="status-pill status-published"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">check_circle</span> منشور</span>`;
+      if (status === "review" || status === "pending") {
+        statusBadgeHtml = `<span class="status-pill status-review"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">pending_actions</span> قيد المراجعة</span>`;
+      } else if (status === "draft") {
+        statusBadgeHtml = `<span class="status-pill status-draft"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">draft</span> مسودة</span>`;
+      }
+
+      const breakingBadge = isBreakingStillActive(post)
+        ? `<span class="status-pill status-breaking"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">bolt</span> عاجل نشط</span>`
+        : "";
+
+      const compassesStr = getPostCompasses(post).join(" ، ");
+      const thumb =
+        post.imageUrl ||
+        "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=300&q=60";
+
+      const canManagePost =
+        isUserEditorOrAdmin() ||
+        (state.userProfile &&
+          ((post.authorEmail &&
+            post.authorEmail.toLowerCase() === (state.userProfile.email || "").toLowerCase()) ||
+            post.author === state.userProfile.name));
+
+      const showApproveBtn =
+        isUserEditorOrAdmin() && (status === "review" || status === "pending" || status === "draft");
+
+      return `
+        <article class="ops-post-row">
+          <div class="ops-post-info">
+            <img src="${escapeHtml(thumb)}" alt="" class="ops-post-thumb" loading="lazy">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
+                ${statusBadgeHtml}
+                ${breakingBadge}
+                <span class="views-secret-badge" title="عدد القراءات (سري للإدارة والكاتب فقط)">
+                  <span class="material-symbols-rounded" style="font-size:14px;" translate="no">visibility</span>
+                  <span>${Number(post.views || 0).toLocaleString("ar-YE")} قراءة</span>
+                </span>
+              </div>
+              <h3 class="ops-post-title">${escapeHtml(post.title)}</h3>
+              <div class="ops-post-meta">
+                <span>الكاتب: <strong>${escapeHtml(post.author || "هيئة التحرير")}</strong></span>
+                <span>|</span>
+                <span>البوصلة: ${escapeHtml(compassesStr)}</span>
+                <span>|</span>
+                <span>${formatArabicDate(post.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ops-post-actions">
+            <button type="button" class="btn-outline sm-btn" data-post-preview="${escapeHtml(post.id)}" title="فتح ومعاينة المنشور في غرفة العمليات">
+              <span class="material-symbols-rounded" translate="no">visibility</span>
+              <span>معاينة</span>
+            </button>
+
+            ${
+              showApproveBtn
+                ? `<button type="button" class="btn-success sm-btn" data-post-approve="${escapeHtml(post.id)}">
+                    <span class="material-symbols-rounded" translate="no">check_circle</span>
+                    <span>اعتماد ونشر</span>
+                  </button>`
+                : ""
+            }
+
+            ${
+              canManagePost
+                ? `<button type="button" class="btn-outline sm-btn" data-post-edit="${escapeHtml(post.id)}">
+                    <span class="material-symbols-rounded" translate="no">edit</span>
+                    <span>تعديل</span>
+                  </button>`
+                : ""
+            }
+
+            <a href="${PUBLIC_SITE_URL}/?post=${encodeURIComponent(post.id)}" target="_blank" rel="noopener noreferrer" class="btn-outline sm-btn" title="فتح الرابط المباشر في الموقع العام">
+              <span class="material-symbols-rounded" translate="no">open_in_new</span>
+            </a>
+
+            ${
+              canManagePost
+                ? `<button type="button" class="btn-outline sm-btn danger-icon-btn" data-post-delete="${escapeHtml(post.id)}" title="حذف المنشور">
+                    <span class="material-symbols-rounded" translate="no">delete</span>
+                  </button>`
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  // ربط أزرار المعاينة والاعتماد والتعديل والحذف
+  listEl.querySelectorAll("[data-post-preview]").forEach((btn) => {
+    btn.addEventListener("click", () => openPostPreviewModal(btn.getAttribute("data-post-preview")));
+  });
+
+  listEl.querySelectorAll("[data-post-approve]").forEach((btn) => {
+    btn.addEventListener("click", () => approveAndPublishPost(btn.getAttribute("data-post-approve")));
+  });
+
+  listEl.querySelectorAll("[data-post-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const post = state.posts.find((p) => p.id === btn.getAttribute("data-post-edit"));
+      if (post) populateEditorForPost(post);
+    });
+  });
+
+  listEl.querySelectorAll("[data-post-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => deletePostItem(btn.getAttribute("data-post-delete")));
+  });
+}
+
+async function approveAndPublishPost(postId) {
+  if (!isUserEditorOrAdmin()) {
+    showOpsToast("اعتماد المقالات مخصص للمحررين والقيادة فقط");
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "posts", postId), {
+      status: "published",
+      approvedBy: state.userProfile?.name || state.currentUser?.email || "الإدارة",
+      approvedAt: serverTimestamp()
+    });
+    showOpsToast("تم اعتماد المادة ونشرها في الموقع العام بنجاح");
+    document.getElementById("article-preview-modal")?.classList.add("hidden");
+  } catch (err) {
+    console.error("Approve post error:", err);
+    showOpsToast("تعذر اعتماد المنشور");
+  }
+}
+
+async function deletePostItem(postId) {
+  const post = state.posts.find((p) => p.id === postId);
+  if (!post) return;
+  if (!window.confirm(`هل أنت متأكد من حذف المنشور: "${post.title}" نهائياً؟`)) return;
+  try {
+    await deleteDoc(doc(db, "posts", postId));
+    showOpsToast("تم حذف المنشور بنجاح");
+  } catch (err) {
+    console.error("Delete post error:", err);
+    showOpsToast("حدث خطأ أثناء حذف المنشور");
+  }
+}
+
+// ==================== 12. نافذة فتح ومعاينة المنشور داخل غرفة العمليات ====================
+function openPostPreviewModal(postId) {
+  const post = state.posts.find((p) => p.id === postId);
+  if (!post) return;
+
+  state.previewPostId = postId;
+  const modal = document.getElementById("article-preview-modal");
+  if (!modal) return;
+
+  const compasses = getPostCompasses(post);
+  const status = post.status || "published";
+
+  const badgesEl = document.getElementById("preview-badges");
+  if (badgesEl) {
+    badgesEl.innerHTML = [
+      `<span class="status-pill ${
+        status === "published" ? "status-published" : status === "review" ? "status-review" : "status-draft"
+      }">${status === "published" ? "منشور" : status === "review" ? "قيد المراجعة" : "مسودة"}</span>`,
+      ...compasses.map((c) => `<span class="role-badge">${escapeHtml(c)}</span>`)
+    ].join("");
+  }
+
+  document.getElementById("preview-title").textContent = post.title || "";
+  const sumEl = document.getElementById("preview-summary");
+  if (sumEl) {
+    sumEl.textContent = post.summary || "";
+    sumEl.classList.toggle("hidden", !post.summary);
+  }
+
+  document.getElementById("preview-meta").textContent = `الكاتب: ${
+    post.author || "هيئة التحرير"
+  } | التاريخ: ${formatArabicDate(post.createdAt)} | القراءات: ${post.views || 0}`;
+
+  const mediaEl = document.getElementById("preview-media");
+  if (mediaEl) {
+    mediaEl.innerHTML = post.imageUrl
+      ? `<img src="${escapeHtml(post.imageUrl)}" alt="${escapeHtml(post.title)}">`
+      : "";
+  }
+
+  const contentEl = document.getElementById("preview-content");
+  if (contentEl) {
+    contentEl.innerHTML = post.content || "";
+  }
+
+  const approveBtn = document.getElementById("preview-approve-btn");
+  if (approveBtn) {
+    const canApprove = isUserEditorOrAdmin() && status !== "published";
+    approveBtn.classList.toggle("hidden", !canApprove);
+    approveBtn.onclick = () => approveAndPublishPost(post.id);
+  }
+
+  const editBtn = document.getElementById("preview-edit-btn");
+  if (editBtn) {
+    editBtn.onclick = () => {
+      modal.classList.add("hidden");
+      populateEditorForPost(post);
+    };
+  }
+
+  modal.classList.remove("hidden");
+}
+
+// ==================== 13. محرر المقالات المتقدم، رفع الصور، وتعدد البوصلات ====================
+async function handleEditorImageUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById("image-upload-status");
+  if (statusEl) statusEl.textContent = "جاري رفع الصورة وتجهيز الرابط...";
+
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${DEFAULT_IMGBB_API_KEY}`, {
+      method: "POST",
+      body: formData
+    });
+    const data = await res.json();
+
+    if (data && data.success && data.data?.url) {
+      const urlInput = document.getElementById("post-image-url");
+      if (urlInput) urlInput.value = data.data.url;
+      if (statusEl) statusEl.textContent = "تم رفع الصورة وإدراج رابطها بنجاح";
+      showOpsToast("تم رفع الصورة بنجاح");
+    } else {
+      throw new Error("Upload failed");
+    }
+  } catch (err) {
+    console.error("Image upload error:", err);
+    if (statusEl) statusEl.textContent = "تعذر الرفع التلقائي، يمكنك وضع رابط مباشر للصورة";
+    showOpsToast("تعذر رفع الصورة، يرجى المحاولة مرة أخرى أو لصق رابط الصورة");
+  }
+}
+
+function applyToolbarFormatting(formatType) {
+  const textarea = document.getElementById("post-content");
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.substring(start, end) || "النص هنا";
+  let replacement = selected;
+
+  if (formatType === "h2") {
+    replacement = `\n<h2>${selected}</h2>\n`;
+  } else if (formatType === "h3") {
+    replacement = `\n<h3>${selected}</h3>\n`;
+  } else if (formatType === "bold") {
+    replacement = `<strong>${selected}</strong>`;
+  } else if (formatType === "quote") {
+    replacement = `\n<blockquote>${selected}</blockquote>\n`;
+  } else if (formatType === "paragraph") {
+    replacement = `\n<p>${selected}</p>\n`;
+  } else if (formatType === "link") {
+    const url = window.prompt("أدخل الرابط الكامل (https://...):", "https://");
+    if (!url) return;
+    replacement = `<a href="${url.trim()}" target="_blank" rel="noopener noreferrer">${selected}</a>`;
+  }
+
+  textarea.setRangeText(replacement, start, end, "end");
+  textarea.focus();
+}
+
+function populateEditorForPost(post) {
+  switchOpsTab("editor");
+  document.getElementById("editor-form-heading").textContent = `تعديل المنشور: ${post.title}`;
+  document.getElementById("edit-post-id").value = post.id;
+  document.getElementById("post-title").value = post.title || "";
+  document.getElementById("post-subcategory").value = post.subcategory || "";
+  document.getElementById("post-summary").value = post.summary || "";
+  document.getElementById("post-image-url").value = post.imageUrl || "";
+  document.getElementById("post-video-url").value = post.videoUrl || "";
+  document.getElementById("post-content").value = post.content || "";
+  document.getElementById("post-tags").value = Array.isArray(post.tags) ? post.tags.join(", ") : "";
+  document.getElementById("post-breaking-hours").value = String(post.breakingDurationHours || 6);
+  document.getElementById("post-is-featured").checked = Boolean(post.isFeatured);
+  document.getElementById("post-is-breaking").checked = Boolean(post.isBreaking);
+  document.getElementById("post-is-quick").checked = Boolean(post.isQuickNews);
+
+  const postCompasses = getPostCompasses(post);
+  document.querySelectorAll('input[name="post-compass-item"]').forEach((chk) => {
+    chk.checked = postCompasses.includes(chk.value);
+  });
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetArticleEditor() {
+  document.getElementById("editor-form-heading").textContent = "تحرير ونشر مادة صحفية";
+  document.getElementById("edit-post-id").value = "";
+  document.getElementById("article-editor-form")?.reset();
+  const statusEl = document.getElementById("image-upload-status");
+  if (statusEl) statusEl.textContent = "";
+  populateCompassSelectorsAndFilters();
+}
+
+function formatContentParagraphs(rawContent = "") {
+  const trimmed = rawContent.trim();
+  if (!trimmed) return "";
+  // إذا كان النص يحتوي بالفعل على وسوم فقرات أو عناوين HTML نتركه كما هو، وإلا نحول الأسطر إلى فقرات منظمة
+  if (/<(p|h2|h3|blockquote|ul|ol|div)\b/i.test(trimmed)) {
+    return trimmed;
+  }
+  return trimmed
+    .split(/\n{2,}/)
+    .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
+
+async function submitArticleForm(saveAsDraft = false) {
+  const editId = (document.getElementById("edit-post-id")?.value || "").trim();
+  const title = (document.getElementById("post-title")?.value || "").trim();
+  const rawContent = (document.getElementById("post-content")?.value || "").trim();
+
+  if (!title || !rawContent) {
+    showOpsToast("يرجى كتابة عنوان المقال والنص الكامل أولاً");
+    return;
+  }
+
+  const selectedCompasses = Array.from(
+    document.querySelectorAll('input[name="post-compass-item"]:checked')
+  ).map((el) => el.value);
+
+  if (!selectedCompasses.length) {
+    showOpsToast("يرجى اختيار بوصلة أو قسم واحد على الأقل للمقال");
+    return;
+  }
+
+  const tagsRaw = (document.getElementById("post-tags")?.value || "").trim();
+  const tags = tagsRaw
+    ? tagsRaw
+        .split(/[,،]/)
+        .map((t) => t.replace(/^#/, "").trim())
+        .filter(Boolean)
+    : [];
+
+  const isBreaking = Boolean(document.getElementById("post-is-breaking")?.checked);
+  const breakingHours = Number(document.getElementById("post-breaking-hours")?.value || 6);
+  const breakingExpiresAt = isBreaking ? Date.now() + breakingHours * 3600 * 1000 : null;
+
+  // تحديد حالة المنشور وفق صلاحيات الكاتب (نشر مباشر للموثقين / إحالة للمراجعة لغير الموثقين أو المقيدين)
+  let postStatus = "review";
+  if (saveAsDraft) {
+    postStatus = "draft";
+  } else if (canUserPublishDirectly()) {
+    postStatus = "published";
+  } else {
+    postStatus = "review";
+  }
+
+  const authorProfile = state.userProfile || {};
+  const payload = {
+    title,
+    summary: (document.getElementById("post-summary")?.value || "").trim(),
+    content: formatContentParagraphs(rawContent),
+    category: selectedCompasses[0],
+    categories: selectedCompasses,
+    subcategory: (document.getElementById("post-subcategory")?.value || "").trim(),
+    imageUrl: (document.getElementById("post-image-url")?.value || "").trim(),
+    videoUrl: (document.getElementById("post-video-url")?.value || "").trim(),
+    tags,
+    isFeatured: Boolean(document.getElementById("post-is-featured")?.checked),
+    isBreaking,
+    breakingDurationHours: breakingHours,
+    breakingExpiresAt,
+    isQuickNews: Boolean(document.getElementById("post-is-quick")?.checked),
+    status: postStatus,
+    updatedAt: serverTimestamp()
+  };
+
+  try {
+    if (editId) {
+      await setDoc(doc(db, "posts", editId), payload, { merge: true });
+    } else {
+      await addDoc(collection(db, "posts"), {
+        ...payload,
+        author: authorProfile.name || state.currentUser?.displayName || "هيئة التحرير",
+        authorEmail: (authorProfile.email || state.currentUser?.email || "").toLowerCase(),
+        authorAvatar: authorProfile.avatar || state.currentUser?.photoURL || "",
+        authorVerified: Boolean(authorProfile.verified),
+        views: 0,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    if (saveAsDraft) {
+      showOpsToast("تم حفظ المادة في المسودات بنجاح");
+    } else if (postStatus === "published") {
+      showOpsToast("تم نشر المادة الصحفية مباشرة في الموقع العام");
+    } else {
+      showOpsToast("تم إرسال مادتك إلى هيئة التحرير للمراجعة والاعتماد");
+    }
+
+    resetArticleEditor();
+    switchOpsTab("dashboard");
+  } catch (err) {
+    console.error("Save article error:", err);
+    showOpsToast("حدث خطأ أثناء حفظ المقال، تحقق من اتصالك");
+  }
+}
+
+// ==================== 14. تقنية النشر السريع للأخبار العاجلة الموقوتة ====================
+async function submitQuickBreakingForm(e) {
+  e.preventDefault();
+  const title = (document.getElementById("quick-news-title")?.value || "").trim();
+  const compass = document.getElementById("quick-news-compass")?.value || "بوصلة السياسة اليمنية";
+  const durationHours = Number(document.getElementById("quick-news-duration")?.value || 6);
+  const bodyText = (document.getElementById("quick-news-body")?.value || "").trim();
+
+  if (!title) return;
+
+  const postStatus = canUserPublishDirectly() ? "published" : "review";
+  const authorProfile = state.userProfile || {};
+
+  const payload = {
+    title,
+    summary: bodyText || title,
+    content: formatContentParagraphs(bodyText || title),
+    category: compass,
+    categories: [compass],
+    isBreaking: true,
+    isQuickNews: true,
+    breakingDurationHours: durationHours,
+    breakingExpiresAt: Date.now() + durationHours * 3600 * 1000,
+    tags: ["عاجل", "أخبار_سريعة", "شبكة_البوصلة"],
+    status: postStatus,
+    author: authorProfile.name || "غرفة الأخبار العاجلة",
+    authorEmail: (authorProfile.email || state.currentUser?.email || "").toLowerCase(),
+    authorAvatar: authorProfile.avatar || "",
+    authorVerified: Boolean(authorProfile.verified),
+    views: 0,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  try {
+    await addDoc(collection(db, "posts"), payload);
+    document.getElementById("quick-breaking-form")?.reset();
+    document.getElementById("quick-breaking-modal")?.classList.add("hidden");
+
+    showOpsToast(
+      postStatus === "published"
+        ? `تم بث الخبر العاجل لمدة (${durationHours}) ساعات في الموقع العام`
+        : "تم إرسال الخبر السريع للمراجعة الفورية"
+    );
+  } catch (err) {
+    console.error("Quick breaking error:", err);
+    showOpsToast("تعذر بث الخبر العاجل");
+  }
+}
+
+// ==================== 15. التنقل بين التبويبات والزر المركزي السحري (+) ====================
+function switchOpsTab(tabName) {
+  state.activeTab = tabName;
+
+  const sections = {
+    dashboard: document.getElementById("tab-dashboard"),
+    editor: document.getElementById("tab-editor"),
+    compasses: document.getElementById("tab-compasses"),
+    staff: document.getElementById("tab-staff"),
+    ads: document.getElementById("tab-ads"),
+    charter: document.getElementById("tab-charter"),
+    settings: document.getElementById("tab-settings")
+  };
+
+  Object.entries(sections).forEach(([key, el]) => {
+    if (el) el.classList.toggle("hidden", key !== tabName);
+  });
+
+  document.querySelectorAll("[data-ops-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-ops-tab") === tabName);
+  });
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ==================== 16. ربط الأحداث والمزامنة اللحظية مع Firestore ====================
+function bindOpsEvents() {
+  // تسجيل الدخول والخروج
+  document.getElementById("google-login-btn")?.addEventListener("click", async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      const errBox = document.getElementById("auth-error-box");
+      const errText = document.getElementById("auth-error-text");
+      if (errBox && errText) {
+        errText.textContent = "تعذر تسجيل الدخول عبر Google. تأكد من السماح بالنوافذ المنبثقة.";
+        errBox.classList.remove("hidden");
+      }
+    }
+  });
+
+  document.getElementById("logout-btn")?.addEventListener("click", async () => {
+    await signOut(auth);
+  });
+
+  // إغلاق التنبيه الإداري للصحفي بعد قراءته
+  document.getElementById("dismiss-staff-alert-btn")?.addEventListener("click", async () => {
+    document.getElementById("staff-alert-bar")?.classList.add("hidden");
+    if (state.userProfile?.id) {
+      await updateDoc(doc(db, "staff", state.userProfile.id), { adminAlert: "" }).catch(() => {});
+    }
+  });
+
+  // التنقل بين التبويبات
+  document.querySelectorAll("[data-ops-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetTab = btn.getAttribute("data-ops-tab");
+      if (targetTab) switchOpsTab(targetTab);
+    });
+  });
+
+  // الزر المركزي السحري (+) وخياراته المنبثقة
+  const magicModal = document.getElementById("magic-publish-modal");
+  document.getElementById("magic-create-btn")?.addEventListener("click", () => {
+    magicModal?.classList.remove("hidden");
+  });
+
+  document.getElementById("magic-opt-article")?.addEventListener("click", () => {
+    magicModal?.classList.add("hidden");
+    resetArticleEditor();
+    switchOpsTab("editor");
+  });
+
+  document.getElementById("magic-opt-breaking")?.addEventListener("click", () => {
+    magicModal?.classList.add("hidden");
+    document.getElementById("quick-breaking-modal")?.classList.remove("hidden");
+  });
+
+  document.getElementById("magic-opt-ad")?.addEventListener("click", () => {
+    magicModal?.classList.add("hidden");
+    if (!isUserEditorOrAdmin()) {
+      showOpsToast("إدارة الإعلانات مخصصة لهيئة التحرير والقيادة");
+      return;
+    }
+    switchOpsTab("ads");
+  });
+
+  document.getElementById("magic-opt-compass")?.addEventListener("click", () => {
+    magicModal?.classList.add("hidden");
+    if (!isUserEditorOrAdmin()) {
+      showOpsToast("إدارة البوصلات مخصصة لهيئة التحرير والقيادة");
+      return;
+    }
+    switchOpsTab("compasses");
+  });
+
+  // أزرار الاختصار في لوحة المتابعة
+  document.getElementById("new-article-trigger-btn")?.addEventListener("click", () => {
+    resetArticleEditor();
+    switchOpsTab("editor");
+  });
+
+  document.getElementById("quick-breaking-trigger-btn")?.addEventListener("click", () => {
+    document.getElementById("quick-breaking-modal")?.classList.remove("hidden");
+  });
+
+  // إغلاق النوافذ المنبثقة
+  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const modalId = btn.getAttribute("data-close-modal");
+      if (modalId) document.getElementById(modalId)?.classList.add("hidden");
+    });
+  });
+
+  // فلاتر المنشورات في لوحة المتابعة
+  ["ops-posts-search", "ops-filter-status", "ops-filter-compass", "ops-filter-author"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", renderOpsPostsList);
+    el.addEventListener("change", renderOpsPostsList);
+  });
+
+  // أحداث المحرر وشريط الأدوات
+  document.getElementById("post-image-file")?.addEventListener("change", handleEditorImageUpload);
+
+  document.querySelectorAll(".tool-btn").forEach((btn) => {
+    btn.addEventListener("click", () => applyToolbarFormatting(btn.getAttribute("data-format")));
+  });
+
+  document.getElementById("article-editor-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submitArticleForm(false);
+  });
+
+  document.getElementById("save-draft-btn")?.addEventListener("click", () => {
+    submitArticleForm(true);
+  });
+
+  document.getElementById("reset-editor-btn")?.addEventListener("click", resetArticleEditor);
+
+  // نموذج الأخبار العاجلة السريعة
+  document.getElementById("quick-breaking-form")?.addEventListener("submit", submitQuickBreakingForm);
+
+  // نماذج البوصلات، الكادر، الإعلانات، والإعدادات السيادية
+  document.getElementById("compass-form")?.addEventListener("submit", saveCompassItem);
+  document.getElementById("reset-compass-form-btn")?.addEventListener("click", resetCompassForm);
+  document.getElementById("seed-default-compasses-btn")?.addEventListener("click", seedDefaultCompassesToDb);
+
+  document.getElementById("staff-form")?.addEventListener("submit", saveStaffMember);
+  document.getElementById("reset-staff-form-btn")?.addEventListener("click", resetStaffForm);
+  document.getElementById("ops-staff-search")?.addEventListener("input", (e) => {
+    renderStaffList(e.target.value);
+  });
+
+  document.getElementById("ad-form")?.addEventListener("submit", saveAdItem);
+  document.getElementById("reset-ad-form-btn")?.addEventListener("click", resetAdForm);
+
+  document.getElementById("sovereign-settings-form")?.addEventListener("submit", saveSovereignSettings);
+}
+
+function startOpsRealtimeListeners() {
+  // 1. مزامنة الإعدادات السيادية
+  onSnapshot(doc(db, "settings", "general"), (snap) => {
+    if (snap.exists()) {
+      state.settings = { ...state.settings, ...snap.data() };
+    }
+    populateSettingsForm();
+  });
+
+  // 2. مزامنة البوصلات والأقسام
+  onSnapshot(collection(db, "categories"), (snap) => {
+    if (!snap.empty) {
+      const dbCats = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const merged = [...DEFAULT_COMPASSES];
+      dbCats.forEach((cat) => {
+        const idx = merged.findIndex((m) => m.id === cat.id || m.name === cat.name);
+        if (idx >= 0) merged[idx] = { ...merged[idx], ...cat };
+        else merged.push(cat);
+      });
+      state.compasses = merged;
+    }
+    populateCompassSelectorsAndFilters();
+    renderCompassesManagerList();
+  });
+
+  // 3. مزامنة الكادر الصحفي
+  onSnapshot(collection(db, "staff"), (snap) => {
+    state.staff = snap.docs.map((d) => ({ id: d.id, email: d.id, ...d.data() }));
+    renderStaffList(document.getElementById("ops-staff-search")?.value || "");
+    populateAuthorFilterDropdown();
+
+    // تحديث صلاحيات المستخدم الحالي فورياً إذا تم تعديلها
+    if (state.currentUser?.email) {
+      const myEmail = state.currentUser.email.toLowerCase();
+      const updatedMe = state.staff.find((s) => s.id === myEmail);
+      if (updatedMe) {
+        state.userProfile = updatedMe;
+        applyUserInterfacePermissions();
+      }
+    }
+  });
+
+  // 4. مزامنة المنشورات والمقالات والعواجل
+  onSnapshot(collection(db, "posts"), (snap) => {
+    state.posts = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => getPostTimestampMs(b) - getPostTimestampMs(a));
+
+    populateAuthorFilterDropdown();
+    renderOpsPostsList();
+  });
+
+  // 5. مزامنة الإعلانات
+  onSnapshot(collection(db, "ads"), (snap) => {
+    state.ads = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderAdsManagerList();
+  });
+}
+
+// ==================== 17. نقطة انطلاق غرفة العمليات ====================
+document.addEventListener("DOMContentLoaded", () => {
+  populateCompassSelectorsAndFilters();
+  populateSettingsForm();
+  bindOpsEvents();
+
+  onAuthStateChanged(auth, (user) => {
+    handleAuthUser(user);
+  });
+});
+
 
 function getPostTimestampMs(post) {
   if (!post || !post.createdAt) return 0;
