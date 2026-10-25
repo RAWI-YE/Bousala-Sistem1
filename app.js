@@ -1,7 +1,6 @@
 /* ==========================================================================
    غرفة العمليات المركزية — شبكة البوصلة الإخبارية (RAWI-YE.COM)
-   المحرك البرمجي (app.js) — الجزء الأول:
-   الاتصال بقاعدة البيانات، المصادقة، الإعدادات السيادية، الكادر، البوصلات، والإعلانات
+   المحرك البرمجي الكامل (app.js) — نسخة القيادة العليا المعتمدة
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -39,7 +38,6 @@ const FIREBASE_CONFIG = {
   measurementId: "G-2VNWNSZLBJ"
 };
 
-// حفظ الإعدادات الصحيحة في المتصفح لضمان عدم بقاء أي مفاتيح قديمة
 try {
   localStorage.setItem("bawsala_firebase_config", JSON.stringify(FIREBASE_CONFIG));
 } catch (_) {}
@@ -52,9 +50,18 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
-// مفتاح منصة رفع الصور (ImgBB API Key) الخاص بك
 const IMGBB_API_KEY = "c2fd857fff0abe7b1a8a33b57cb621c6";
 const PUBLIC_SITE_URL = "https://networkbawsala.rawi-ye.com";
+
+// القائمة السيادية لبريد القيادة العليا (تمنح صلاحيات المدير العام الفورية دائماً)
+const SUPER_ADMIN_EMAILS = [
+  "rawialshamal@gmail.com",
+  "a1hmedrashad@gmail.com"
+];
+
+function isSuperAdminEmail(email = "") {
+  return SUPER_ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase());
+}
 
 // ==================== 2. البوصلات التخصصية والنصوص المؤسسية الافتراضية ====================
 const DEFAULT_COMPASSES = [
@@ -241,18 +248,20 @@ function getPostTimestampMs(post) {
 }
 
 function isUserAdmin() {
+  if (state.currentUser && isSuperAdminEmail(state.currentUser.email)) return true;
   return Boolean(state.userProfile && state.userProfile.role === "admin");
 }
 
 function isUserEditorOrAdmin() {
+  if (isUserAdmin()) return true;
   return Boolean(
     state.userProfile && (state.userProfile.role === "admin" || state.userProfile.role === "editor")
   );
 }
 
 function canUserPublishDirectly() {
+  if (isUserEditorOrAdmin()) return true;
   if (!state.userProfile) return false;
-  if (state.userProfile.role === "admin" || state.userProfile.role === "editor") return true;
   if (state.userProfile.requireReview) return false;
   return Boolean(state.userProfile.verified);
 }
@@ -263,7 +272,7 @@ function getRoleArabicName(role) {
   return "كاتب وصحفي";
 }
 
-// ==================== 5. منظومة المصادقة وتسجيل الدخول المزدوجة (الهواتف والكمبيوتر) ====================
+// ==================== 5. منظومة المصادقة وتسجيل الدخول المزدوجة ====================
 async function triggerGoogleLogin() {
   const errBox = document.getElementById("auth-error-box");
   const errText = document.getElementById("auth-error-text");
@@ -273,12 +282,10 @@ async function triggerGoogleLogin() {
   if (loginBtn) loginBtn.disabled = true;
 
   try {
-    // المحاولة الأولى: فتح نافذة Google المباشرة بالمفاتيح الرسمية الصحيحة
     await signInWithPopup(auth, googleProvider);
   } catch (err) {
     console.warn("Popup sign-in notice:", err?.code || err);
 
-    // إذا كان متصفح الهاتف يمنع النوافذ المنبثقة أو يدعم إعادة التوجيه فقط، نتحول فوراً إلى Redirect
     if (
       err?.code === "auth/popup-blocked" ||
       err?.code === "auth/cancelled-popup-request" ||
@@ -295,7 +302,7 @@ async function triggerGoogleLogin() {
 
     if (err?.code !== "auth/popup-closed-by-user") {
       if (errBox && errText) {
-        errText.textContent = `تعذر تسجيل الدخول (${err?.code || "خطأ في الاتصال"}). تأكد من إضافة نطاق الموقع في Authorized domains داخل Firebase.`;
+        errText.textContent = `تعذر تسجيل الدخول (${err?.code || "خطأ في الاتصال"}). تأكد من الاتصال بالإنترنت أو إعدادات المتصفح.`;
         errBox.classList.remove("hidden");
       }
     }
@@ -332,6 +339,8 @@ async function handleAuthUser(firebaseUser) {
     return;
   }
 
+  const isSuper = isSuperAdminEmail(emailKey);
+
   try {
     const staffRef = doc(db, "staff", emailKey);
     const staffSnap = await getDoc(staffRef);
@@ -340,23 +349,35 @@ async function handleAuthUser(firebaseUser) {
 
     if (staffSnap.exists()) {
       profileData = { id: emailKey, email: emailKey, ...staffSnap.data() };
+      // إذا كان البريد ضمن القائمة السيادية، نضمن ترقيته الفورية دائماً إلى admin وتوثيقه
+      if (isSuper && (profileData.role !== "admin" || !profileData.verified || profileData.suspended)) {
+        profileData.role = "admin";
+        profileData.verified = true;
+        profileData.requireReview = false;
+        profileData.suspended = false;
+        await setDoc(
+          staffRef,
+          { role: "admin", verified: true, requireReview: false, suspended: false },
+          { merge: true }
+        );
+      }
     } else {
       profileData = {
         id: emailKey,
         email: emailKey,
         name: firebaseUser.displayName || emailKey.split("@")[0],
         avatar: firebaseUser.photoURL || "",
-        role: "admin",
-        jobTitle: "عضو هيئة التحرير",
-        verified: true,
-        requireReview: false,
+        role: isSuper ? "admin" : "writer",
+        jobTitle: isSuper ? "المدير العام ورئيس التحرير" : "كاتب ومحرر صحفي",
+        verified: isSuper ? true : false,
+        requireReview: isSuper ? false : true,
         suspended: false,
         createdAt: serverTimestamp()
       };
       await setDoc(staffRef, profileData, { merge: true });
     }
 
-    if (profileData.suspended) {
+    if (profileData.suspended && !isSuper) {
       if (errBox && errText) {
         errText.textContent = "تم تجميد حسابك مؤقتاً من قِبل إدارة التحرير. يرجى التواصل مع القيادة.";
         errBox.classList.remove("hidden");
@@ -379,6 +400,30 @@ async function handleAuthUser(firebaseUser) {
     }
   } catch (err) {
     console.error("Auth check error:", err);
+    // في حال حدوث تأخر في الشبكة وكان البريد سيادياً، نفتحه بصلاحيات كاملة فوراً
+    if (isSuper) {
+      state.currentUser = firebaseUser;
+      state.userProfile = {
+        id: emailKey,
+        email: emailKey,
+        name: firebaseUser.displayName || "المدير العام",
+        avatar: firebaseUser.photoURL || "",
+        role: "admin",
+        jobTitle: "المدير العام ورئيس التحرير",
+        verified: true,
+        requireReview: false,
+        suspended: false
+      };
+      authScreen?.classList.add("hidden");
+      opsApp?.classList.remove("hidden");
+      applyUserInterfacePermissions();
+      if (!state.listenersStarted) {
+        state.listenersStarted = true;
+        startOpsRealtimeListeners();
+      }
+      return;
+    }
+
     if (errBox && errText) {
       errText.textContent = "حدث خطأ أثناء التحقق من الصلاحيات. تأكد من اتصالك بالإنترنت.";
       errBox.classList.remove("hidden");
@@ -389,6 +434,8 @@ async function handleAuthUser(firebaseUser) {
 function applyUserInterfacePermissions() {
   const p = state.userProfile;
   if (!p) return;
+
+  const effectiveRole = isUserAdmin() ? "admin" : p.role;
 
   const nameEl = document.getElementById("current-user-name");
   if (nameEl) nameEl.textContent = p.name || p.email;
@@ -402,10 +449,10 @@ function applyUserInterfacePermissions() {
   }
 
   const roleBadge = document.getElementById("current-user-role-badge");
-  if (roleBadge) roleBadge.textContent = getRoleArabicName(p.role);
+  if (roleBadge) roleBadge.textContent = getRoleArabicName(effectiveRole);
 
   const verIcon = document.getElementById("current-user-verified");
-  if (verIcon) verIcon.classList.toggle("hidden", !p.verified);
+  if (verIcon) verIcon.classList.toggle("hidden", !(p.verified || isUserAdmin()));
 
   const adminOnlyIds = [
     "nav-tab-staff",
@@ -436,7 +483,7 @@ function applyUserInterfacePermissions() {
   if (canUserPublishDirectly()) {
     if (noticeText) {
       noticeText.textContent =
-        "تتمتع بصلاحية النشر المباشر (صحفي موثق بالشارة الزرقاء / هيئة التحرير). أي مادة تعتمدها ستُنشر فوراً في الموقع العام.";
+        "تتمتع بصلاحية النشر المباشر الكاملة (القيادة العليا / صحفي موثق). أي مادة تعتمدها ستُنشر فوراً في الموقع العام.";
     }
     if (publishBtnLabel) publishBtnLabel.textContent = "نشر فوري في الموقع العام";
   } else {
@@ -515,7 +562,7 @@ async function saveSovereignSettings(e) {
     showOpsToast("تم حفظ وتعميم الإعدادات السيادية في الموقع العام بنجاح");
   } catch (err) {
     console.error("Save settings error:", err);
-    showOpsToast("تعذر حفظ الإعدادات، تحقق من الصلاحيات أو الاتصال");
+    showOpsToast("تعذر حفظ الإعدادات، تحقق من الاتصال");
   }
 }
 
@@ -592,20 +639,21 @@ function renderStaffList(filterQuery = "") {
         s.avatar ||
         `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name || "صحفي")}&background=1d4ed8&color=fff`;
 
+      const memberRole = isSuperAdminEmail(s.email) ? "admin" : s.role;
       const statusBadges = [];
-      statusBadges.push(`<span class="role-badge">${escapeHtml(getRoleArabicName(s.role))}</span>`);
+      statusBadges.push(`<span class="role-badge">${escapeHtml(getRoleArabicName(memberRole))}</span>`);
 
-      if (s.verified) {
+      if (s.verified || isSuperAdminEmail(s.email)) {
         statusBadges.push(
           `<span class="status-pill status-published"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">verified</span> موثق بالشارة الزرقاء</span>`
         );
       }
-      if (s.requireReview) {
+      if (s.requireReview && !isSuperAdminEmail(s.email)) {
         statusBadges.push(
           `<span class="status-pill status-review"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">policy</span> مقيد بالمراجعة الإلزامية</span>`
         );
       }
-      if (s.suspended) {
+      if (s.suspended && !isSuperAdminEmail(s.email)) {
         statusBadges.push(
           `<span class="status-pill status-breaking"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">block</span> حساب مجمد</span>`
         );
@@ -766,13 +814,13 @@ async function saveStaffMember(e) {
     name,
     email: emailKey,
     phone: (document.getElementById("staff-phone")?.value || "").trim(),
-    role: document.getElementById("staff-role")?.value || "writer",
+    role: isSuperAdminEmail(emailKey) ? "admin" : (document.getElementById("staff-role")?.value || "writer"),
     jobTitle: (document.getElementById("staff-job-title")?.value || "").trim() || "كاتب ومحرر صحفي",
     avatar: (document.getElementById("staff-avatar")?.value || "").trim(),
     bio: (document.getElementById("staff-bio")?.value || "").trim(),
-    verified: Boolean(document.getElementById("staff-verified")?.checked),
-    requireReview: Boolean(document.getElementById("staff-require-review")?.checked),
-    suspended: Boolean(document.getElementById("staff-suspended")?.checked),
+    verified: isSuperAdminEmail(emailKey) ? true : Boolean(document.getElementById("staff-verified")?.checked),
+    requireReview: isSuperAdminEmail(emailKey) ? false : Boolean(document.getElementById("staff-require-review")?.checked),
+    suspended: isSuperAdminEmail(emailKey) ? false : Boolean(document.getElementById("staff-suspended")?.checked),
     updatedAt: serverTimestamp()
   };
 
@@ -1062,13 +1110,6 @@ async function saveAdItem(e) {
   }
 }
 
-// ------------------- نهاية الجزء الأول من غرفة العمليات -------------------
-/* ==========================================================================
-   غرفة العمليات المركزية — شبكة البوصلة الإخبارية (RAWI-YE.COM)
-   المحرك البرمجي (app.js) — الجزء الثاني والأخير:
-   إدارة المنشورات، الفلترة، المعاينة، المحرر المتقدم، رفع الصور، والعواجل الموقوتة
-   ========================================================================== */
-
 // ==================== 10. تحديث قوائم البوصلات والكتّاب في الفلاتر والمحرر ====================
 function getActiveCompassesList() {
   return [...state.compasses].sort((a, b) => (a.order || 99) - (b.order || 99));
@@ -1102,7 +1143,6 @@ function isBreakingStillActive(post) {
 function populateCompassSelectorsAndFilters() {
   const compasses = getActiveCompassesList();
 
-  // 1. فلتر البوصلات في لوحة المتابعة
   const filterCompass = document.getElementById("ops-filter-compass");
   if (filterCompass) {
     const currentVal = filterCompass.value || "all";
@@ -1113,7 +1153,6 @@ function populateCompassSelectorsAndFilters() {
     filterCompass.value = currentVal;
   }
 
-  // 2. قائمة البوصلات في نافذة الخبر العاجل السريع
   const quickCompass = document.getElementById("quick-news-compass");
   if (quickCompass) {
     quickCompass.innerHTML = compasses
@@ -1121,7 +1160,6 @@ function populateCompassSelectorsAndFilters() {
       .join("");
   }
 
-  // 3. شبكة الاختيار المتعدد للبوصلات داخل محرر المقالات
   const multiGrid = document.getElementById("multi-compass-selector");
   if (multiGrid) {
     const currentlyChecked = Array.from(
@@ -1148,7 +1186,6 @@ function populateCompassSelectorsAndFilters() {
       .join("");
   }
 
-  // 4. قائمة الاقتراحات للفئات الفرعية (Datalist)
   const subDatalist = document.getElementById("subcategories-datalist");
   if (subDatalist) {
     const allSubs = new Set();
@@ -1650,7 +1687,7 @@ async function submitArticleForm(saveAsDraft = false) {
         author: authorProfile.name || state.currentUser?.displayName || "هيئة التحرير",
         authorEmail: (authorProfile.email || state.currentUser?.email || "").toLowerCase(),
         authorAvatar: authorProfile.avatar || state.currentUser?.photoURL || "",
-        authorVerified: Boolean(authorProfile.verified),
+        authorVerified: Boolean(authorProfile.verified || isUserAdmin()),
         views: 0,
         createdAt: serverTimestamp()
       });
@@ -1700,7 +1737,7 @@ async function submitQuickBreakingForm(e) {
     author: authorProfile.name || "غرفة الأخبار العاجلة",
     authorEmail: (authorProfile.email || state.currentUser?.email || "").toLowerCase(),
     authorAvatar: authorProfile.avatar || "",
-    authorVerified: Boolean(authorProfile.verified),
+    authorVerified: Boolean(authorProfile.verified || isUserAdmin()),
     views: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -1749,14 +1786,12 @@ function switchOpsTab(tabName) {
 
 // ==================== 16. ربط الأحداث والمزامنة اللحظية مع Firestore ====================
 function bindOpsEvents() {
-  // ربط زر تسجيل الدخول عبر Google بالدالة المزدوجة (Popup + Redirect Fallback)
   document.getElementById("google-login-btn")?.addEventListener("click", triggerGoogleLogin);
 
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     await signOut(auth);
   });
 
-  // إغلاق التنبيه الإداري للصحفي بعد قراءته
   document.getElementById("dismiss-staff-alert-btn")?.addEventListener("click", async () => {
     document.getElementById("staff-alert-bar")?.classList.add("hidden");
     if (state.userProfile?.id) {
@@ -1764,7 +1799,6 @@ function bindOpsEvents() {
     }
   });
 
-  // التنقل بين التبويبات
   document.querySelectorAll("[data-ops-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetTab = btn.getAttribute("data-ops-tab");
@@ -1772,7 +1806,6 @@ function bindOpsEvents() {
     });
   });
 
-  // الزر المركزي السحري (+) وخياراته المنبثقة
   const magicModal = document.getElementById("magic-publish-modal");
   document.getElementById("magic-create-btn")?.addEventListener("click", () => {
     magicModal?.classList.remove("hidden");
@@ -1807,7 +1840,6 @@ function bindOpsEvents() {
     switchOpsTab("compasses");
   });
 
-  // أزرار الاختصار في لوحة المتابعة
   document.getElementById("new-article-trigger-btn")?.addEventListener("click", () => {
     resetArticleEditor();
     switchOpsTab("editor");
@@ -1817,7 +1849,6 @@ function bindOpsEvents() {
     document.getElementById("quick-breaking-modal")?.classList.remove("hidden");
   });
 
-  // إغلاق النوافذ المنبثقة
   document.querySelectorAll("[data-close-modal]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const modalId = btn.getAttribute("data-close-modal");
@@ -1825,7 +1856,6 @@ function bindOpsEvents() {
     });
   });
 
-  // فلاتر المنشورات في لوحة المتابعة
   ["ops-posts-search", "ops-filter-status", "ops-filter-compass", "ops-filter-author"].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1833,7 +1863,6 @@ function bindOpsEvents() {
     el.addEventListener("change", renderOpsPostsList);
   });
 
-  // أحداث المحرر وشريط الأدوات
   document.getElementById("post-image-file")?.addEventListener("change", handleEditorImageUpload);
 
   document.querySelectorAll(".tool-btn").forEach((btn) => {
@@ -1851,10 +1880,8 @@ function bindOpsEvents() {
 
   document.getElementById("reset-editor-btn")?.addEventListener("click", resetArticleEditor);
 
-  // نموذج الأخبار العاجلة السريعة
   document.getElementById("quick-breaking-form")?.addEventListener("submit", submitQuickBreakingForm);
 
-  // نماذج البوصلات، الكادر، الإعلانات، والإعدادات السيادية
   document.getElementById("compass-form")?.addEventListener("submit", saveCompassItem);
   document.getElementById("reset-compass-form-btn")?.addEventListener("click", resetCompassForm);
   document.getElementById("seed-default-compasses-btn")?.addEventListener("click", seedDefaultCompassesToDb);
@@ -1872,7 +1899,6 @@ function bindOpsEvents() {
 }
 
 function startOpsRealtimeListeners() {
-  // 1. مزامنة الإعدادات السيادية
   onSnapshot(doc(db, "settings", "general"), (snap) => {
     if (snap.exists()) {
       state.settings = { ...state.settings, ...snap.data() };
@@ -1880,7 +1906,6 @@ function startOpsRealtimeListeners() {
     populateSettingsForm();
   });
 
-  // 2. مزامنة البوصلات والأقسام
   onSnapshot(collection(db, "categories"), (snap) => {
     if (!snap.empty) {
       const dbCats = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -1896,7 +1921,6 @@ function startOpsRealtimeListeners() {
     renderCompassesManagerList();
   });
 
-  // 3. مزامنة الكادر الصحفي
   onSnapshot(collection(db, "staff"), (snap) => {
     state.staff = snap.docs.map((d) => ({ id: d.id, email: d.id, ...d.data() }));
     renderStaffList(document.getElementById("ops-staff-search")?.value || "");
@@ -1906,13 +1930,18 @@ function startOpsRealtimeListeners() {
       const myEmail = state.currentUser.email.toLowerCase();
       const updatedMe = state.staff.find((s) => s.id === myEmail);
       if (updatedMe) {
+        if (isSuperAdminEmail(myEmail)) {
+          updatedMe.role = "admin";
+          updatedMe.verified = true;
+          updatedMe.requireReview = false;
+          updatedMe.suspended = false;
+        }
         state.userProfile = updatedMe;
         applyUserInterfacePermissions();
       }
     }
   });
 
-  // 4. مزامنة المنشورات والمقالات والعواجل
   onSnapshot(collection(db, "posts"), (snap) => {
     state.posts = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
@@ -1922,7 +1951,6 @@ function startOpsRealtimeListeners() {
     renderOpsPostsList();
   });
 
-  // 5. مزامنة الإعلانات
   onSnapshot(collection(db, "ads"), (snap) => {
     state.ads = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAdsManagerList();
@@ -1935,7 +1963,6 @@ document.addEventListener("DOMContentLoaded", () => {
   populateSettingsForm();
   bindOpsEvents();
 
-  // فحص أي عملية دخول عائدة من إعادة التوجيه (Redirect) على الهواتف
   checkPendingRedirectLogin();
 
   onAuthStateChanged(auth, (user) => {
