@@ -1,56 +1,34 @@
 /* ==========================================================================
-   شبكة البوصلة الإخبارية — غرفة العمليات المركزية (Samsung One UI 9 + Glass)
+   غرفة العمليات المركزية — شبكة البوصلة (RAWI-YE.COM)
+   تصميم نهاري كلاسيكي صلب ومستقر 100% بدون أي اهتزاز أو وضع ليلي
    ========================================================================== */
 
-:root,
-[data-theme="dark"] {
-  --bg-main: #060a12;
-  --bg-ambient: radial-gradient(circle at 18% 12%, rgba(59, 130, 246, 0.14), transparent 38%),
-                radial-gradient(circle at 82% 85%, rgba(37, 99, 235, 0.1), transparent 42%);
-  --surface-bg: rgba(17, 24, 39, 0.86);
-  --surface-elevated: rgba(30, 41, 59, 0.65);
-  --glass-bar-bg: rgba(11, 17, 30, 0.84);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(59, 130, 246, 0.65);
-  --input-bg: rgba(9, 13, 24, 0.88);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-glow: rgba(59, 130, 246, 0.32);
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --verified-blue: #38bdf8;
-  --oneui-radius-xl: 26px;
-  --oneui-radius-lg: 20px;
-  --oneui-radius-md: 16px;
-  --oneui-radius-sm: 12px;
-  --shadow-oneui: 0 18px 40px -12px rgba(0, 0, 0, 0.55);
-}
-
-[data-theme="light"] {
-  --bg-main: #f2f4f8;
-  --bg-ambient: radial-gradient(circle at 18% 12%, rgba(59, 130, 246, 0.08), transparent 38%),
-                radial-gradient(circle at 82% 85%, rgba(14, 165, 233, 0.06), transparent 42%);
-  --surface-bg: rgba(255, 255, 255, 0.94);
-  --surface-elevated: rgba(241, 245, 249, 0.92);
-  --glass-bar-bg: rgba(255, 255, 255, 0.88);
-  --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-focus: rgba(37, 99, 235, 0.6);
-  --input-bg: #f8fafc;
+:root {
+  --bg-page: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-subtle: #f8fafc;
+  --border-color: #e2e8f0;
+  --border-strong: #cbd5e1;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-muted: #64748b;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-glow: rgba(37, 99, 235, 0.22);
-  --verified-blue: #0284c7;
-  --shadow-oneui: 0 10px 30px -8px rgba(15, 23, 42, 0.07);
+  --primary: #1d4ed8;
+  --primary-light: rgba(29, 78, 216, 0.08);
+  --danger: #dc2626;
+  --danger-light: rgba(220, 38, 38, 0.08);
+  --success: #15803d;
+  --success-light: rgba(21, 128, 61, 0.1);
+  --warning: #b45309;
+  --warning-light: rgba(180, 83, 9, 0.1);
+  --verified: #0284c7;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -58,339 +36,234 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: 'Cairo', 'Tajawal', sans-serif;
-  background-color: var(--bg-main);
-  background-image: var(--bg-ambient);
-  background-attachment: fixed;
+  background-color: var(--bg-page);
   color: var(--text-primary);
-  line-height: 1.65;
+  line-height: 1.6;
   min-height: 100vh;
-  padding-bottom: 105px;
-  overflow-x: hidden;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  padding-bottom: 90px;
+}
+
+img {
+  max-width: 100%;
+  display: block;
 }
 
 .hidden {
   display: none !important;
 }
 
-.container {
+.ops-container {
   width: 100%;
-  max-width: 1260px;
+  max-width: 1320px;
   margin: 0 auto;
   padding: 0 16px;
 }
 
-.oneui-surface {
-  background: var(--surface-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--oneui-radius-xl);
-  box-shadow: var(--shadow-oneui);
-}
-
-.oneui-glass-bar {
-  background: var(--glass-bar-bg);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid var(--border-subtle);
-}
-
-/* ==================== 1. بوابة المصادقة (One UI Login) ==================== */
+/* ==================== 1. شاشة تسجيل الدخول ==================== */
 .auth-screen {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
 }
 
 .auth-card {
   width: 100%;
   max-width: 440px;
-  padding: 36px 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 32px 26px;
   text-align: center;
+  box-shadow: var(--shadow-md);
 }
 
-.auth-logo {
-  height: 60px;
-  width: auto;
-  max-width: 190px;
-  object-fit: contain;
-  margin: 0 auto 14px;
-  display: block;
-  transition: opacity 0.25s ease;
-}
-
-.oneui-chip,
-.badge-pill {
+.auth-brand-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background: rgba(59, 130, 246, 0.14);
-  color: var(--accent);
-  border: 1px solid rgba(59, 130, 246, 0.28);
-  padding: 4px 12px;
-  border-radius: 99px;
-  font-size: 0.76rem;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.auth-brand-mark .material-symbols-rounded {
+  font-size: 32px;
+}
+
+.auth-kicker {
+  display: block;
+  font-size: 0.78rem;
   font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 4px;
 }
 
 .auth-title {
   font-size: 1.45rem;
   font-weight: 900;
-  margin-top: 10px;
+  margin-bottom: 6px;
 }
 
 .auth-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: var(--text-secondary);
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
-.google-auth-btn {
+.auth-google-btn {
   width: 100%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 13px 18px;
-  border-radius: var(--oneui-radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.94rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  margin-bottom: 18px;
 }
 
-.google-auth-btn:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.auth-divider {
-  margin: 18px 0;
-  font-size: 0.8rem;
+.auth-footer-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
   color: var(--text-muted);
 }
 
-.auth-form {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.auth-footer-note .material-symbols-rounded {
+  font-size: 17px;
+  color: var(--success);
 }
 
-.auth-error {
-  margin-top: 14px;
-  padding: 12px;
-  border-radius: var(--oneui-radius-sm);
-  background: rgba(239, 68, 68, 0.14);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: var(--danger);
-  font-size: 0.84rem;
-  font-weight: 700;
-}
-
-/* ==================== 2. الترويسة العلوية النقية ==================== */
-.admin-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  border-top: none;
-  border-left: none;
-  border-right: none;
+/* ==================== 2. الترويسة العلوية وشريط التنقل ==================== */
+.ops-header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  min-height: 68px;
   gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
-.header-identity {
+.header-right, .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex: 1;
+  gap: 10px;
 }
 
-.brand-logo {
-  height: 42px;
-  width: auto;
-  max-width: 125px;
-  object-fit: contain;
-  flex-shrink: 0;
-  transition: opacity 0.25s ease;
-}
-
-.brand-text {
-  min-width: 0;
+.ops-brand {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.brand-title-row {
+.ops-brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ops-brand-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.brand-title {
+.ops-brand-title-row strong {
   font-size: 1.05rem;
   font-weight: 900;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.brand-subtitle {
-  font-size: 0.74rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  direction: ltr;
-  text-align: right;
+.ops-brand-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
 }
 
 .role-badge {
-  font-size: 0.71rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  padding: 2px 10px;
-  border-radius: 99px;
-  background: rgba(16, 185, 129, 0.16);
-  color: var(--success);
-  border: 1px solid rgba(16, 185, 129, 0.32);
-  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
-.header-actions {
+.ops-desktop-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
-.oneui-pill-action {
+.ops-nav-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 16px;
-  border-radius: 99px;
-  border: none;
-  background: var(--accent);
-  color: #fff;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
   font-family: inherit;
   font-size: 0.84rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 14px var(--accent-glow);
-  white-space: nowrap;
-  transition: transform 0.2s ease, background 0.2s ease;
 }
 
-.oneui-pill-action:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-}
-
-.icon-circle-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.icon-circle-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.danger-circle-btn:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.admin-tabs-bar {
-  border-top: 1px solid var(--border-subtle);
-  padding: 8px 0;
-}
-
-.tabs-scroll {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 2px 2px;
-}
-
-.tabs-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.admin-tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 16px;
-  border-radius: 99px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 800;
-  white-space: nowrap;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.admin-tab-btn .material-symbols-rounded {
+.ops-nav-btn .material-symbols-rounded {
   font-size: 19px;
 }
 
-.admin-tab-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
-  box-shadow: 0 4px 14px var(--accent-glow);
+.ops-nav-btn:hover,
+.ops-nav-btn.active {
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
-.notif-counter {
-  background: var(--danger);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 900;
-  padding: 1px 7px;
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 6px;
   border-radius: 99px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
-/* ==================== 3. بطاقات الإحصائيات ومساحة العمل ==================== */
-.admin-main {
+.user-pill-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.verified-icon {
+  color: var(--verified) !important;
+  font-size: 18px !important;
+}
+
+/* ==================== 3. البطاقات الإحصائية واللوحات ==================== */
+.ops-main {
   margin-top: 20px;
 }
 
@@ -402,143 +275,199 @@ body {
 }
 
 .stat-card {
-  padding: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
   display: flex;
   align-items: center;
   gap: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
-.stat-icon-box,
-.setting-squircle {
+.stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.blue-tint {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-}
-
-.green-tint {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-
-.red-tint {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
-.amber-tint {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-
-.purple-tint {
-  background: rgba(139, 92, 246, 0.15);
-  color: #8b5cf6;
-}
+.blue-stat { background: var(--primary-light); color: var(--primary); }
+.amber-stat { background: var(--warning-light); color: var(--warning); }
+.red-stat { background: var(--danger-light); color: var(--danger); }
+.green-stat { background: var(--success-light); color: var(--success); }
 
 .stat-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  display: block;
+  font-size: 0.78rem;
   font-weight: 700;
+  color: var(--text-muted);
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   font-weight: 900;
-  line-height: 1.2;
+  color: var(--text-primary);
 }
 
-.oneui-card {
-  padding: 24px;
-}
-
-.card-header-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.panel-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
   margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-subtle);
 }
 
-.panel-header-row {
+.panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 22px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.card-title-group {
+.panel-title-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.card-head-icon {
-  font-size: 28px;
-  color: var(--accent);
-  background: rgba(59, 130, 246, 0.12);
-  padding: 10px;
-  border-radius: 14px;
+.panel-title-wrap .material-symbols-rounded {
+  color: var(--primary);
 }
 
-.panel-title {
-  font-size: 1.15rem;
+.panel-title-wrap h2 {
+  font-size: 1.1rem;
   font-weight: 900;
 }
 
-.panel-subtitle {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.filter-bar-grid {
+/* ==================== 4. الفلاتر وقائمة المنشورات ==================== */
+.filters-bar {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
   gap: 10px;
+  margin-bottom: 16px;
 }
 
-.search-field-wrap {
+.filter-search-box {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-field-wrap .material-symbols-rounded {
+.filter-search-box .material-symbols-rounded {
   position: absolute;
   right: 12px;
   color: var(--text-muted);
-  pointer-events: none;
 }
 
-.search-field-wrap .oneui-input {
-  padding-right: 40px;
+.filter-search-box .form-input {
+  padding-right: 38px;
 }
 
-.admin-grid-2 {
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-/* ==================== 4. الحقول، الأدوات، ومفاتيح One UI 9 الانزلاقية ==================== */
-.admin-form {
+.ops-posts-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+}
+
+.ops-post-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.ops-post-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.ops-post-thumb {
+  width: 68px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.ops-post-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.ops-post-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.status-published { background: var(--success-light); color: var(--success); }
+.status-review { background: var(--warning-light); color: var(--warning); }
+.status-draft { background: #e2e8f0; color: var(--text-secondary); }
+.status-breaking { background: var(--danger-light); color: var(--danger); }
+
+.views-secret-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.ops-post-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ==================== 5. النماذج والمحرر (Forms & Editor) ==================== */
+.ops-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .form-grid-2 {
@@ -553,6 +482,13 @@ body {
   gap: 14px;
 }
 
+.ops-grid-sidebar {
+  display: grid;
+  grid-template-columns: 390px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -563,470 +499,372 @@ body {
   font-size: 0.84rem;
   font-weight: 800;
   color: var(--text-secondary);
-  padding-right: 4px;
 }
 
-.oneui-input {
+.form-input,
+.form-select,
+.form-textarea {
   width: 100%;
-  padding: 12px 15px;
-  border-radius: var(--oneui-radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--input-bg);
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-card);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 0.92rem;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.oneui-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-}
-
-.content-textarea {
-  line-height: 1.85;
-  resize: vertical;
-}
-
-.editor-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px;
-  border-radius: var(--oneui-radius-md);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
-}
-
-.tool-btn {
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: var(--input-bg);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.tool-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.upload-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.upload-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 11px 16px;
-  border-radius: var(--oneui-radius-md);
-  background: rgba(59, 130, 246, 0.14);
-  border: 1px solid rgba(59, 130, 246, 0.32);
-  color: var(--accent);
-  font-size: 0.84rem;
-  font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.conditional-box {
-  padding: 16px;
-  border-radius: var(--oneui-radius-md);
-  background: rgba(59, 130, 246, 0.06);
-  border: 1px dashed rgba(59, 130, 246, 0.35);
-}
-
-/* مفتاح تبديل جالاكسي الحقيقي (Samsung One UI 9 Toggle Switch) */
-.switches-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.oneui-switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 14px 18px;
-  border-radius: var(--oneui-radius-lg);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
-  cursor: pointer;
-}
-
-.switch-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.switch-text strong {
   font-size: 0.9rem;
-  font-weight: 800;
+  outline: none;
 }
 
-.switch-text span {
-  font-size: 0.76rem;
-  color: var(--text-secondary);
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--primary);
 }
 
-.oneui-toggle {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 50px;
-  height: 28px;
-  border-radius: 99px;
-  background: rgba(148, 163, 184, 0.35);
-  border: 1px solid var(--border-subtle);
-  position: relative;
+.sm-input {
+  max-width: 240px;
+}
+
+.form-color-input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  background: var(--bg-card);
   cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.25s ease, border-color 0.25s ease;
 }
 
-.oneui-toggle::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.oneui-toggle:checked {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.oneui-toggle:checked::after {
-  transform: translateX(22px);
-}
-
-.color-picker-row {
+.input-with-action {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.color-swatch-input {
-  width: 46px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background: transparent;
+.upload-label-btn {
   cursor: pointer;
-  padding: 2px;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.maintenance-box {
+.field-hint {
+  font-size: 0.76rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* اختيار أكثر من بوصلة للمقال */
+.multi-compass-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.compass-check-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.compass-check-item input {
+  accent-color: var(--primary);
+}
+
+/* شريط أدوات المحرر */
+.editor-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: var(--oneui-radius-md);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tool-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.tool-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.article-body-editor {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  line-height: 1.85;
+}
+
+.checkboxes-row,
+.staff-controls-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.check-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.check-pill input {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
 }
 
 .form-actions-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
-  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
 }
 
-.primary-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 99px;
+.form-divider {
   border: none;
-  background: var(--accent);
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 6px 18px var(--accent-glow);
-  transition: transform 0.18s ease, background 0.18s ease;
+  border-top: 1px solid var(--border-color);
+  margin: 10px 0;
 }
 
-.primary-btn:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
+.settings-sub-heading {
+  font-size: 0.98rem;
+  font-weight: 900;
+  color: var(--primary);
 }
 
-.lg-btn {
-  padding: 14px 28px;
-  font-size: 0.96rem;
-}
-
-.secondary-btn {
+/* ==================== 6. الأزرار العامة ==================== */
+.btn-primary,
+.btn-danger,
+.btn-success,
+.btn-outline {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 18px;
-  border-radius: 99px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
 }
 
-.full-width {
-  width: 100%;
+.btn-primary { background: var(--primary); color: #ffffff; }
+.btn-danger { background: var(--danger); color: #ffffff; }
+.btn-success { background: var(--success); color: #ffffff; }
+.btn-outline {
+  background: var(--bg-card);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
-/* ==================== 5. قوائم العناصر الإدارية ==================== */
-.admin-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.btn-outline:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.admin-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 16px;
-  border-radius: var(--oneui-radius-lg);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
+.btn-lg {
+  padding: 11px 20px;
+  font-size: 0.92rem;
 }
 
-.item-main-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 230px;
+.sm-btn {
+  padding: 6px 10px;
+  font-size: 0.78rem;
 }
 
-.item-thumb {
-  width: 60px;
-  height: 60px;
-  border-radius: 14px;
-  object-fit: cover;
-  background: #1e293b;
-  flex-shrink: 0;
-}
-
-.item-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--accent);
-  flex-shrink: 0;
-}
-
-.item-title {
-  font-size: 0.96rem;
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.item-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 0.76rem;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
-
-.item-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.action-chip {
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 7px 14px;
-  border-radius: 99px;
-  border: 1px solid var(--border-subtle);
-  background: var(--input-bg);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
+  justify-content: center;
   cursor: pointer;
 }
 
-.action-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.action-chip.danger:hover {
+.danger-icon-btn:hover {
   border-color: var(--danger);
   color: var(--danger);
 }
 
-.action-chip.success {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.35);
-  color: var(--success);
+/* ==================== 7. بطاقات الكادر الصحفي، الأقسام، والإعلانات ==================== */
+.ops-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
 }
 
-.verified-badge {
-  font-family: 'Material Symbols Rounded';
-  font-size: 17px;
-  color: var(--verified-blue);
-  vertical-align: middle;
-}
-
-/* ==================== 6. بطاقات الإعدادات المنسدلة (One UI 9 Accordions) ==================== */
-.profile-preview-banner {
+.ops-item-card {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ops-staff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.staff-member-card {
   padding: 16px;
-  border-radius: var(--oneui-radius-lg);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
-}
-
-.profile-avatar-lg {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--accent);
-}
-
-.author-name-row {
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.kyc-status-box {
-  padding: 14px 18px;
-  border-radius: var(--oneui-radius-md);
-  background: var(--surface-elevated);
-  border-right: 4px solid var(--accent);
-  margin-bottom: 16px;
-  font-size: 0.9rem;
-}
-
-.settings-accordion {
-  margin-bottom: 16px;
-  overflow: hidden;
-}
-
-.accordion-header {
-  list-style: none;
+.staff-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 22px;
-  cursor: pointer;
-  user-select: none;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.accordion-header::-webkit-details-marker {
-  display: none;
-}
-
-.accordion-title-wrap {
+.staff-identity {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.staff-avatar-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
+}
+
+.staff-actions-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* ==================== 8. الميثاق وإرشادات السلامة ==================== */
+.charter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.charter-box {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.charter-box h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin-bottom: 14px;
+  color: var(--primary);
+}
+
+.charter-content-body p {
+  margin-bottom: 12px;
+}
+
+.safety-guidelines-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 
-.accordion-title-wrap h3 {
-  font-size: 1.02rem;
-  font-weight: 900;
-}
-
-.accordion-title-wrap p {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.accordion-arrow {
-  color: var(--text-secondary);
-  transition: transform 0.25s ease;
-}
-
-details[open] .accordion-arrow {
-  transform: rotate(180deg);
-}
-
-.accordion-body {
-  padding: 20px 22px 24px;
-  border-top: 1px solid var(--border-subtle);
+.safety-guidelines-list li {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
 }
 
-.sticky-save-bar {
-  position: sticky;
-  bottom: 84px;
-  padding: 14px 22px;
-  border-radius: 99px;
-  justify-content: center;
-  z-index: 60;
-  box-shadow: var(--shadow-oneui);
+.safety-guidelines-list .material-symbols-rounded {
+  color: var(--success);
+  margin-top: 2px;
 }
 
-/* ==================== 7. الشريط السفلي العائم (One UI 9 Bottom Dock) ==================== */
-.oneui-bottom-dock {
+/* ==================== 9. الشريط السفلي والزر المركزي السحري (+) ==================== */
+.ops-bottom-dock {
   position: fixed;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 28px);
-  max-width: 520px;
-  height: 64px;
-  border-radius: 99px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 66px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-around;
+  max-width: 600px;
+  margin: 0 auto;
   padding: 0 10px;
   z-index: 120;
-  box-shadow: var(--shadow-oneui);
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
 }
 
 .dock-btn {
   flex: 1;
-  height: 50px;
+  height: 52px;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1036,21 +874,36 @@ details[open] .accordion-arrow {
   font-size: 0.72rem;
   font-weight: 800;
   cursor: pointer;
-  border-radius: 99px;
-  transition: color 0.2s ease, background 0.2s ease;
 }
 
-.dock-btn:hover,
 .dock-btn.active {
-  color: var(--accent);
-  background: rgba(59, 130, 246, 0.12);
+  color: var(--primary);
 }
 
-/* ==================== 8. نافذة معاينة الوثيقة والإشعارات ==================== */
-.modal-backdrop {
+.magic-center-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 4px solid var(--bg-card);
+  background: var(--primary);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-14px);
+  box-shadow: 0 8px 20px rgba(29, 78, 216, 0.35);
+  cursor: pointer;
+}
+
+.magic-center-btn .material-symbols-rounded {
+  font-size: 28px;
+}
+
+/* ==================== 10. النوافذ المنبثقة والتنبيهات ==================== */
+.ops-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1058,88 +911,188 @@ details[open] .accordion-arrow {
   z-index: 250;
 }
 
-.modal-card {
+.ops-modal-card {
   width: 100%;
-  max-width: 560px;
-  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
 }
 
-.modal-header {
+.sm-modal { max-width: 500px; }
+.lg-modal { max-width: 780px; }
+
+.ops-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ops-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.magic-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.magic-option-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-subtle);
+  text-align: right;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.magic-option-card:hover {
+  border-color: var(--primary);
+  background: var(--bg-card);
+}
+
+.magic-opt-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.magic-option-card strong {
+  display: block;
+  font-size: 0.94rem;
+  color: var(--text-primary);
+}
+
+.magic-option-card p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* معاينة المقال داخل غرفة العمليات */
+.preview-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.preview-main-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+
+.preview-lead-summary {
+  padding: 12px;
+  background: var(--bg-subtle);
+  border-right: 4px solid var(--primary);
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.preview-meta-line {
+  font-size: 0.8rem;
+  color: var(--text-muted);
   margin-bottom: 14px;
 }
 
-.kyc-doc-preview-img {
+.preview-media-box img {
   width: 100%;
-  max-height: 420px;
-  object-fit: contain;
-  border-radius: var(--oneui-radius-md);
-  background: #000;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+}
+
+.preview-article-body {
+  font-size: 1rem;
+  line-height: 1.85;
+}
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.alert-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alert-danger { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(220, 38, 38, 0.25); }
+.alert-warning { background: var(--warning-light); color: var(--warning); border: 1px solid rgba(180, 83, 9, 0.25); }
+.alert-info { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(29, 78, 216, 0.2); }
+
+.ops-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 800;
+  z-index: 300;
 }
 
 .empty-state {
-  padding: 32px 20px;
+  padding: 28px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 700;
 }
 
-.admin-toast {
-  position: fixed;
-  bottom: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15, 23, 42, 0.96);
-  color: #fff;
-  border: 1px solid var(--accent);
-  padding: 12px 24px;
-  border-radius: 99px;
-  font-size: 0.86rem;
-  font-weight: 800;
-  z-index: 300;
-  box-shadow: var(--shadow-oneui);
-  white-space: nowrap;
-}
-
-/* ==================== 9. التجاوب الذكي مع الهواتف (Galaxy Mobile Ready) ==================== */
-@media (max-width: 960px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .admin-grid-2,
-  .form-grid-3,
-  .filter-bar-grid,
-  .switches-grid {
+/* ==================== 11. التجاوب مع الشاشات ==================== */
+@media (max-width: 1024px) {
+  .ops-grid-sidebar,
+  .charter-grid,
+  .filters-bar {
     grid-template-columns: 1fr;
+  }
+  .ops-desktop-nav {
+    display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .form-grid-2 {
+  .form-grid-2,
+  .form-grid-3 {
     grid-template-columns: 1fr;
   }
-  .oneui-card {
-    padding: 18px 16px;
-  }
-  .action-text {
+  .hide-sm {
     display: none;
   }
-  .oneui-pill-action {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    justify-content: center;
-  }
-  .upload-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .accordion-header {
-    padding: 16px;
-  }
-  .accordion-body {
-    padding: 16px;
+  .panel-card {
+    padding: 15px;
   }
 }
