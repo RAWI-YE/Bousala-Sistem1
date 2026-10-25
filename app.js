@@ -1,6 +1,7 @@
 /* ==========================================================================
    غرفة العمليات المركزية — شبكة البوصلة الإخبارية (RAWI-YE.COM)
-   المحرك البرمجي (app.js) — الجزء الأول: المصادقة، الكادر، البوصلات، الإعلانات، والإعدادات
+   المحرك البرمجي (app.js) — الجزء الأول:
+   الاتصال بقاعدة البيانات، المصادقة، الإعدادات السيادية، الكادر، البوصلات، والإعلانات
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -8,6 +9,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -24,34 +27,34 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ==================== 1. إعدادات الاتصال الثابتة بقاعدة البيانات ====================
-const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD-RAWI-01-DEFAULT-KEY-REPLACE-IF-NEEDED",
+// ==================== 1. إعدادات الاتصال الرسمية بقاعدة بيانات Firebase ====================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAd4Df_Fpp2GlGkRPyvmKuFW68LbL_a4yU",
   authDomain: "rawi-01.firebaseapp.com",
+  databaseURL: "https://rawi-01-default-rtdb.firebaseio.com",
   projectId: "rawi-01",
-  storageBucket: "rawi-01.appspot.com",
-  messagingSenderId: "100000000000",
-  appId: "1:100000000000:web:rawi01bawsala"
+  storageBucket: "rawi-01.firebasestorage.app",
+  messagingSenderId: "91203142966",
+  appId: "1:91203142966:web:a44f7c06c98529a57a9f97",
+  measurementId: "G-2VNWNSZLBJ"
 };
 
-function resolveFirebaseConfig() {
-  try {
-    const saved = localStorage.getItem("bawsala_firebase_config") || localStorage.getItem("firebaseConfig");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.projectId) return parsed;
-    }
-  } catch (_) {}
-  return DEFAULT_FIREBASE_CONFIG;
-}
+// حفظ الإعدادات الصحيحة في المتصفح لضمان عدم بقاء أي مفاتيح قديمة
+try {
+  localStorage.setItem("bawsala_firebase_config", JSON.stringify(FIREBASE_CONFIG));
+} catch (_) {}
 
-const app = initializeApp(resolveFirebaseConfig());
+const app = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
+auth.languageCode = "ar";
 const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
 
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
+// مفتاح منصة رفع الصور (ImgBB API Key) الخاص بك
+const IMGBB_API_KEY = "c2fd857fff0abe7b1a8a33b57cb621c6";
 const PUBLIC_SITE_URL = "https://networkbawsala.rawi-ye.com";
-const DEFAULT_IMGBB_API_KEY = "6d207e02198a847aa98d0a2a901485a5";
 
 // ==================== 2. البوصلات التخصصية والنصوص المؤسسية الافتراضية ====================
 const DEFAULT_COMPASSES = [
@@ -213,7 +216,7 @@ function showOpsToast(msg) {
   toast.textContent = msg;
   toast.classList.remove("hidden");
   clearTimeout(window.__opsToastTimer);
-  window.__opsToastTimer = setTimeout(() => toast.classList.add("hidden"), 3400);
+  window.__opsToastTimer = setTimeout(() => toast.classList.add("hidden"), 3500);
 }
 
 function formatArabicDate(timestamp) {
@@ -237,7 +240,6 @@ function getPostTimestampMs(post) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-// فحص صلاحيات المستخدم الحالي بدقة
 function isUserAdmin() {
   return Boolean(state.userProfile && state.userProfile.role === "admin");
 }
@@ -248,11 +250,9 @@ function isUserEditorOrAdmin() {
   );
 }
 
-// هل يملك الكاتب صلاحية النشر المباشر الفوري دون مراجعة؟
 function canUserPublishDirectly() {
   if (!state.userProfile) return false;
   if (state.userProfile.role === "admin" || state.userProfile.role === "editor") return true;
-  // إذا كان الكاتب مقيداً بالمراجعة الإلزامية حتى لو كان يملك الشارة الزرقاء، تحال مقالاته للمراجعة
   if (state.userProfile.requireReview) return false;
   return Boolean(state.userProfile.verified);
 }
@@ -263,7 +263,55 @@ function getRoleArabicName(role) {
   return "كاتب وصحفي";
 }
 
-// ==================== 5. نظام المصادقة والتحقق من الكادر (Authentication) ====================
+// ==================== 5. منظومة المصادقة وتسجيل الدخول المزدوجة (الهواتف والكمبيوتر) ====================
+async function triggerGoogleLogin() {
+  const errBox = document.getElementById("auth-error-box");
+  const errText = document.getElementById("auth-error-text");
+  const loginBtn = document.getElementById("google-login-btn");
+
+  errBox?.classList.add("hidden");
+  if (loginBtn) loginBtn.disabled = true;
+
+  try {
+    // المحاولة الأولى: فتح نافذة Google المباشرة بالمفاتيح الرسمية الصحيحة
+    await signInWithPopup(auth, googleProvider);
+  } catch (err) {
+    console.warn("Popup sign-in notice:", err?.code || err);
+
+    // إذا كان متصفح الهاتف يمنع النوافذ المنبثقة أو يدعم إعادة التوجيه فقط، نتحول فوراً إلى Redirect
+    if (
+      err?.code === "auth/popup-blocked" ||
+      err?.code === "auth/cancelled-popup-request" ||
+      err?.code === "auth/operation-not-supported-in-this-environment"
+    ) {
+      try {
+        showOpsToast("جاري توجيهك لصفحة تسجيل الدخول الآمنة من Google...");
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      } catch (redirErr) {
+        console.error("Redirect sign-in error:", redirErr);
+      }
+    }
+
+    if (err?.code !== "auth/popup-closed-by-user") {
+      if (errBox && errText) {
+        errText.textContent = `تعذر تسجيل الدخول (${err?.code || "خطأ في الاتصال"}). تأكد من إضافة نطاق الموقع في Authorized domains داخل Firebase.`;
+        errBox.classList.remove("hidden");
+      }
+    }
+  } finally {
+    if (loginBtn) loginBtn.disabled = false;
+  }
+}
+
+async function checkPendingRedirectLogin() {
+  try {
+    await getRedirectResult(auth);
+  } catch (err) {
+    console.warn("Redirect result check:", err);
+  }
+}
+
 async function handleAuthUser(firebaseUser) {
   const authScreen = document.getElementById("auth-screen");
   const opsApp = document.getElementById("ops-app");
@@ -293,13 +341,12 @@ async function handleAuthUser(firebaseUser) {
     if (staffSnap.exists()) {
       profileData = { id: emailKey, email: emailKey, ...staffSnap.data() };
     } else {
-      // إذا لم يكن مسجلاً في السجل بعد، ننشئ له ملفاً أولياً أو نعتمد المدير المؤسس
       profileData = {
         id: emailKey,
         email: emailKey,
         name: firebaseUser.displayName || emailKey.split("@")[0],
         avatar: firebaseUser.photoURL || "",
-        role: "admin", // يمنح صلاحية القيادة للمؤسس، ويمكن تعديل رتب الأعضاء من قسم الكادر
+        role: "admin",
         jobTitle: "عضو هيئة التحرير",
         verified: true,
         requireReview: false,
@@ -360,7 +407,6 @@ function applyUserInterfacePermissions() {
   const verIcon = document.getElementById("current-user-verified");
   if (verIcon) verIcon.classList.toggle("hidden", !p.verified);
 
-  // إظهار أو إخفاء الأقسام السيادية حسب الرتبة
   const adminOnlyIds = [
     "nav-tab-staff",
     "nav-tab-settings",
@@ -376,7 +422,6 @@ function applyUserInterfacePermissions() {
     document.getElementById(id)?.classList.toggle("hidden", !isUserEditorOrAdmin());
   });
 
-  // عرض التنبيه الإداري الموجه للصحفي إن وجد
   const alertBar = document.getElementById("staff-alert-bar");
   const alertMsg = document.getElementById("staff-alert-message");
   if (p.adminAlert && p.adminAlert.trim() !== "") {
@@ -386,7 +431,6 @@ function applyUserInterfacePermissions() {
     alertBar?.classList.add("hidden");
   }
 
-  // تحديث إشعار حالة النشر في المحرر
   const noticeText = document.getElementById("writer-publishing-notice-text");
   const publishBtnLabel = document.getElementById("publish-btn-label");
   if (canUserPublishDirectly()) {
@@ -430,7 +474,6 @@ function populateSettingsForm() {
   setVal("set-charter-html", s.charterHtml || DEFAULT_CHARTER_HTML);
   setVal("set-privacy-html", s.privacyHtml || DEFAULT_PRIVACY_HTML);
 
-  // تحديث عرض الميثاق في تبويب الميثاق والسلامة لكل الكادر
   const charterDisplay = document.getElementById("ops-charter-display");
   if (charterDisplay) {
     charterDisplay.innerHTML = s.charterHtml || DEFAULT_CHARTER_HTML;
@@ -622,7 +665,6 @@ function renderStaffList(filterQuery = "") {
     })
     .join("");
 
-  // ربط أزرار الترحيب والتعديل والتقييد والتنبيه لكل صحفي
   listEl.querySelectorAll("[data-staff-wa]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const member = state.staff.find((m) => m.id === btn.getAttribute("data-staff-wa"));
@@ -1023,7 +1065,8 @@ async function saveAdItem(e) {
 // ------------------- نهاية الجزء الأول من غرفة العمليات -------------------
 /* ==========================================================================
    غرفة العمليات المركزية — شبكة البوصلة الإخبارية (RAWI-YE.COM)
-   المحرك البرمجي (app.js) — الجزء الثاني: إدارة المنشورات، المحرر، المراجعة، والعواجل
+   المحرك البرمجي (app.js) — الجزء الثاني والأخير:
+   إدارة المنشورات، الفلترة، المعاينة، المحرر المتقدم، رفع الصور، والعواجل الموقوتة
    ========================================================================== */
 
 // ==================== 10. تحديث قوائم البوصلات والكتّاب في الفلاتر والمحرر ====================
@@ -1178,7 +1221,6 @@ function renderOpsPostsList() {
 
   let filtered = [...state.posts];
 
-  // إذا كان المستخدم كاتباً عادياً (وليس محرراً أو مديراً)، يرى مقالاته أو المقالات العامة
   if (!isUserEditorOrAdmin() && state.userProfile) {
     const myEmail = (state.userProfile.email || "").toLowerCase();
     const myName = state.userProfile.name || "";
@@ -1317,7 +1359,6 @@ function renderOpsPostsList() {
     })
     .join("");
 
-  // ربط أزرار المعاينة والاعتماد والتعديل والحذف
   listEl.querySelectorAll("[data-post-preview]").forEach((btn) => {
     btn.addEventListener("click", () => openPostPreviewModal(btn.getAttribute("data-post-preview")));
   });
@@ -1439,13 +1480,13 @@ async function handleEditorImageUpload(e) {
   if (!file) return;
 
   const statusEl = document.getElementById("image-upload-status");
-  if (statusEl) statusEl.textContent = "جاري رفع الصورة وتجهيز الرابط...";
+  if (statusEl) statusEl.textContent = "جاري رفع الصورة وتجهيز الرابط المباشر...";
 
   try {
     const formData = new FormData();
     formData.append("image", file);
 
-    const res = await fetch(`https://api.imgbb.com/1/upload?key=${DEFAULT_IMGBB_API_KEY}`, {
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
       method: "POST",
       body: formData
     });
@@ -1531,7 +1572,6 @@ function resetArticleEditor() {
 function formatContentParagraphs(rawContent = "") {
   const trimmed = rawContent.trim();
   if (!trimmed) return "";
-  // إذا كان النص يحتوي بالفعل على وسوم فقرات أو عناوين HTML نتركه كما هو، وإلا نحول الأسطر إلى فقرات منظمة
   if (/<(p|h2|h3|blockquote|ul|ol|div)\b/i.test(trimmed)) {
     return trimmed;
   }
@@ -1572,7 +1612,6 @@ async function submitArticleForm(saveAsDraft = false) {
   const breakingHours = Number(document.getElementById("post-breaking-hours")?.value || 6);
   const breakingExpiresAt = isBreaking ? Date.now() + breakingHours * 3600 * 1000 : null;
 
-  // تحديد حالة المنشور وفق صلاحيات الكاتب (نشر مباشر للموثقين / إحالة للمراجعة لغير الموثقين أو المقيدين)
   let postStatus = "review";
   if (saveAsDraft) {
     postStatus = "draft";
@@ -1710,20 +1749,8 @@ function switchOpsTab(tabName) {
 
 // ==================== 16. ربط الأحداث والمزامنة اللحظية مع Firestore ====================
 function bindOpsEvents() {
-  // تسجيل الدخول والخروج
-  document.getElementById("google-login-btn")?.addEventListener("click", async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error("Google sign-in error:", err);
-      const errBox = document.getElementById("auth-error-box");
-      const errText = document.getElementById("auth-error-text");
-      if (errBox && errText) {
-        errText.textContent = "تعذر تسجيل الدخول عبر Google. تأكد من السماح بالنوافذ المنبثقة.";
-        errBox.classList.remove("hidden");
-      }
-    }
-  });
+  // ربط زر تسجيل الدخول عبر Google بالدالة المزدوجة (Popup + Redirect Fallback)
+  document.getElementById("google-login-btn")?.addEventListener("click", triggerGoogleLogin);
 
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     await signOut(auth);
@@ -1875,7 +1902,6 @@ function startOpsRealtimeListeners() {
     renderStaffList(document.getElementById("ops-staff-search")?.value || "");
     populateAuthorFilterDropdown();
 
-    // تحديث صلاحيات المستخدم الحالي فورياً إذا تم تعديلها
     if (state.currentUser?.email) {
       const myEmail = state.currentUser.email.toLowerCase();
       const updatedMe = state.staff.find((s) => s.id === myEmail);
@@ -1908,6 +1934,9 @@ document.addEventListener("DOMContentLoaded", () => {
   populateCompassSelectorsAndFilters();
   populateSettingsForm();
   bindOpsEvents();
+
+  // فحص أي عملية دخول عائدة من إعادة التوجيه (Redirect) على الهواتف
+  checkPendingRedirectLogin();
 
   onAuthStateChanged(auth, (user) => {
     handleAuthUser(user);
