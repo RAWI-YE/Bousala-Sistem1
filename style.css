@@ -1,6 +1,6 @@
 /* ==========================================================================
    غرفة العمليات المركزية — شبكة البوصلة (RAWI-YE.COM)
-   تصميم نهاري كلاسيكي صلب ومستقر 100% بدون أي اهتزاز أو وضع ليلي
+   تصميم نهاري كلاسيكي صلب ومستقر 100% — يشمل دفتر الملاحظات والملف الشخصي
    ========================================================================== */
 
 :root {
@@ -59,12 +59,12 @@ img {
 
 .ops-container {
   width: 100%;
-  max-width: 1320px;
+  max-width: 1340px;
   margin: 0 auto;
   padding: 0 16px;
 }
 
-/* ==================== 1. شاشة تسجيل الدخول ==================== */
+/* ==================== 1. شاشة تسجيل الدخول المحصنة ==================== */
 .auth-screen {
   min-height: 100vh;
   display: flex;
@@ -76,7 +76,7 @@ img {
 
 .auth-card {
   width: 100%;
-  max-width: 440px;
+  max-width: 450px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -137,7 +137,7 @@ img {
 
 .auth-footer-note .material-symbols-rounded {
   font-size: 17px;
-  color: var(--success);
+  color: var(--primary);
 }
 
 /* ==================== 2. الترويسة العلوية وشريط التنقل ==================== */
@@ -151,7 +151,7 @@ img {
   align-items: center;
   justify-content: space-between;
   min-height: 68px;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   padding-top: 8px;
   padding-bottom: 8px;
@@ -160,7 +160,7 @@ img {
 .header-right, .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ops-brand {
@@ -187,7 +187,7 @@ img {
 }
 
 .ops-brand-title-row strong {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 900;
 }
 
@@ -209,33 +209,43 @@ img {
 .ops-desktop-nav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-wrap: wrap;
 }
 
 .ops-nav-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 5px;
+  padding: 7px 11px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
 }
 
 .ops-nav-btn .material-symbols-rounded {
-  font-size: 19px;
+  font-size: 18px;
 }
 
 .ops-nav-btn:hover,
 .ops-nav-btn.active {
   background: var(--primary-light);
   color: var(--primary);
+}
+
+.notif-dot {
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 99px;
 }
 
 .user-pill {
@@ -246,8 +256,15 @@ img {
   border-radius: 99px;
   background: var(--bg-subtle);
   border: 1px solid var(--border-color);
+  font-family: inherit;
   font-size: 0.82rem;
   font-weight: 800;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.user-pill:hover {
+  border-color: var(--primary);
 }
 
 .user-pill-avatar {
@@ -344,7 +361,7 @@ img {
 }
 
 .panel-title-wrap h2 {
-  font-size: 1.1rem;
+  font-size: 1.08rem;
   font-weight: 900;
 }
 
@@ -430,6 +447,16 @@ img {
   color: var(--text-muted);
 }
 
+.post-rejection-note {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -463,7 +490,100 @@ img {
   gap: 6px;
 }
 
-/* ==================== 5. النماذج والمحرر (Forms & Editor) ==================== */
+/* ==================== 5. دفتر الملاحظات الشخصي وملفي الشخصي ==================== */
+.notebook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 14px;
+}
+
+.note-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-top: 4px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.note-card.note-amber { background: #fffbeb; border-color: #fde68a; border-top-color: #d97706; }
+.note-card.note-blue { background: #eff6ff; border-color: #bfdbfe; border-top-color: #2563eb; }
+.note-card.note-green { background: #f0fdf4; border-color: #bbf7d0; border-top-color: #16a34a; }
+.note-card.note-red { background: #fef2f2; border-color: #fecaca; border-top-color: #dc2626; }
+
+.note-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-card-title {
+  font-size: 0.98rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.note-card-body {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  line-height: 1.7;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.note-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.my-profile-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.my-profile-lg-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+  margin-bottom: 10px;
+}
+
+.my-profile-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.my-profile-name-row h3 {
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.my-profile-job {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* ==================== 6. النماذج والمحرر (Forms & Editor) ==================== */
 .ops-form {
   display: flex;
   flex-direction: column;
@@ -547,12 +667,11 @@ img {
 }
 
 .field-hint {
-  font-size: 0.76rem;
-  color: var(--primary);
+  font-size: 0.75rem;
+  color: var(--text-muted);
   font-weight: 700;
 }
 
-/* اختيار أكثر من بوصلة للمقال */
 .multi-compass-grid {
   display: flex;
   flex-wrap: wrap;
@@ -580,7 +699,6 @@ img {
   accent-color: var(--primary);
 }
 
-/* شريط أدوات المحرر */
 .editor-toolbar {
   display: flex;
   align-items: center;
@@ -664,7 +782,7 @@ img {
   color: var(--primary);
 }
 
-/* ==================== 6. الأزرار العامة ==================== */
+/* ==================== 7. الأزرار العامة ==================== */
 .btn-primary,
 .btn-danger,
 .btn-success,
@@ -725,7 +843,7 @@ img {
   color: var(--danger);
 }
 
-/* ==================== 7. بطاقات الكادر الصحفي، الأقسام، والإعلانات ==================== */
+/* ==================== 8. بطاقات الكادر الصحفي، الأقسام، والإعلانات ==================== */
 .ops-items-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -790,7 +908,7 @@ img {
   border-top: 1px solid var(--border-color);
 }
 
-/* ==================== 8. الميثاق وإرشادات السلامة ==================== */
+/* ==================== 9. الميثاق وإرشادات السلامة ==================== */
 .charter-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -840,7 +958,7 @@ img {
   margin-top: 2px;
 }
 
-/* ==================== 9. الشريط السفلي والزر المركزي السحري (+) ==================== */
+/* ==================== 10. الشريط السفلي والزر المركزي السحري (+) ==================== */
 .ops-bottom-dock {
   position: fixed;
   bottom: 0;
@@ -899,7 +1017,7 @@ img {
   font-size: 28px;
 }
 
-/* ==================== 10. النوافذ المنبثقة والتنبيهات ==================== */
+/* ==================== 11. النوافذ المنبثقة والتنبيهات ==================== */
 .ops-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -938,6 +1056,7 @@ img {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 18px;
   padding-top: 12px;
@@ -989,7 +1108,6 @@ img {
   color: var(--text-muted);
 }
 
-/* معاينة المقال داخل غرفة العمليات */
 .preview-badges-row {
   display: flex;
   flex-wrap: wrap;
@@ -1072,8 +1190,8 @@ img {
   font-weight: 700;
 }
 
-/* ==================== 11. التجاوب مع الشاشات ==================== */
-@media (max-width: 1024px) {
+/* ==================== 12. التجاوب مع الشاشات ==================== */
+@media (max-width: 1080px) {
   .ops-grid-sidebar,
   .charter-grid,
   .filters-bar {
