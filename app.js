@@ -1,6 +1,7 @@
 /* ==========================================================================
    غرفة العمليات المركزية — شبكة البوصلة الإخبارية (RAWI-YE.COM)
-   المحرك البرمجي الكامل (app.js) — نسخة القيادة العليا المعتمدة
+   المحرك البرمجي المحصن (app.js) — الجزء الأول (الجزء الأكبر):
+   الأمان الصارم، العزل، الإعدادات، الكادر وطلبات KYC، دفتر الملاحظات، الملف الشخصي، البوصلات، والإعلانات
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -18,11 +19,14 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
   onSnapshot,
+  query,
+  where,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -39,6 +43,7 @@ const FIREBASE_CONFIG = {
 };
 
 try {
+  localStorage.removeItem("firebaseConfig");
   localStorage.setItem("bawsala_firebase_config", JSON.stringify(FIREBASE_CONFIG));
 } catch (_) {}
 
@@ -53,7 +58,7 @@ googleProvider.setCustomParameters({ prompt: "select_account" });
 const IMGBB_API_KEY = "c2fd857fff0abe7b1a8a33b57cb621c6";
 const PUBLIC_SITE_URL = "https://networkbawsala.rawi-ye.com";
 
-// القائمة السيادية لبريد القيادة العليا (تمنح صلاحيات المدير العام الفورية دائماً)
+// القائمة السيادية لبريد القيادة العليا (صلاحية مطلقة دائماً)
 const SUPER_ADMIN_EMAILS = [
   "rawialshamal@gmail.com",
   "a1hmedrashad@gmail.com"
@@ -195,12 +200,14 @@ const state = {
   posts: [],
   staff: [],
   ads: [],
+  notes: [],
   activeTab: "dashboard",
   previewPostId: null,
-  listenersStarted: false
+  listenersStarted: false,
+  notesUnsubscribe: null
 };
 
-// ==================== 4. الدوال المساعدة وفحص الصلاحيات ====================
+// ==================== 4. الدوال المساعدة، رفع الصور، وفحص الصلاحيات الصارم ====================
 function escapeHtml(str = "") {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -223,13 +230,16 @@ function showOpsToast(msg) {
   toast.textContent = msg;
   toast.classList.remove("hidden");
   clearTimeout(window.__opsToastTimer);
-  window.__opsToastTimer = setTimeout(() => toast.classList.add("hidden"), 3500);
+  window.__opsToastTimer = setTimeout(() => toast.classList.add("hidden"), 3600);
 }
 
 function formatArabicDate(timestamp) {
   if (!timestamp) return "الآن";
-  const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  if (isNaN(d.getTime())) return "حديثاً";
+  let d = null;
+  if (typeof timestamp.toDate === "function") d = timestamp.toDate();
+  else if (timestamp.seconds) d = new Date(timestamp.seconds * 1000);
+  else d = new Date(timestamp);
+  if (!d || isNaN(d.getTime())) return "حديثاً";
   return d.toLocaleDateString("ar-YE", {
     year: "numeric",
     month: "short",
@@ -239,14 +249,32 @@ function formatArabicDate(timestamp) {
   });
 }
 
-function getPostTimestampMs(post) {
-  if (!post || !post.createdAt) return 0;
-  if (typeof post.createdAt.toMillis === "function") return post.createdAt.toMillis();
-  if (post.createdAt.seconds) return post.createdAt.seconds * 1000;
-  const parsed = new Date(post.createdAt).getTime();
+function getPostTimestampMs(item) {
+  if (!item) return 0;
+  const t = item.createdAt || item.updatedAt;
+  if (!t) return 0;
+  if (typeof t.toMillis === "function") return t.toMillis();
+  if (typeof t.seconds === "number") return t.seconds * 1000;
+  const parsed = new Date(t).getTime();
   return isNaN(parsed) ? 0 : parsed;
 }
 
+// دالة موحدة لرفع الصور إلى ImgBB وإرجاع الرابط المباشر
+async function uploadImageToImgbb(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+    method: "POST",
+    body: formData
+  });
+  const data = await res.json();
+  if (data && data.success && data.data?.url) {
+    return data.data.url;
+  }
+  throw new Error("Image upload failed");
+}
+
+// دوال التحقق من الرتب والعزل الأمني (RBAC)
 function isUserAdmin() {
   if (state.currentUser && isSuperAdminEmail(state.currentUser.email)) return true;
   return Boolean(state.userProfile && state.userProfile.role === "admin");
@@ -266,13 +294,25 @@ function canUserPublishDirectly() {
   return Boolean(state.userProfile.verified);
 }
 
+// فحص هل يملك المستخدم الحالي ملكية هذا المقال تحديداً؟
+function isPostOwnedByCurrentUser(post) {
+  if (!post || !state.userProfile) return false;
+  const myEmail = (state.userProfile.email || state.currentUser?.email || "").trim().toLowerCase();
+  const postEmail = (post.authorEmail || "").trim().toLowerCase();
+  if (myEmail && postEmail && myEmail === postEmail) return true;
+  if (state.userProfile.name && post.author && state.userProfile.name.trim() === post.author.trim()) {
+    return true;
+  }
+  return false;
+}
+
 function getRoleArabicName(role) {
   if (role === "admin") return "قيادة عليا (مدير عام)";
   if (role === "editor") return "محرر ومراجع صحفي";
   return "كاتب وصحفي";
 }
 
-// ==================== 5. منظومة المصادقة وتسجيل الدخول المزدوجة ====================
+// ==================== 5. البوابة الأمنية المغلقة (منع الدخول العشوائي تماماً) ====================
 async function triggerGoogleLogin() {
   const errBox = document.getElementById("auth-error-box");
   const errText = document.getElementById("auth-error-text");
@@ -292,7 +332,7 @@ async function triggerGoogleLogin() {
       err?.code === "auth/operation-not-supported-in-this-environment"
     ) {
       try {
-        showOpsToast("جاري توجيهك لصفحة تسجيل الدخول الآمنة من Google...");
+        showOpsToast("جاري توجيهك لبوابة Google الآمنة...");
         await signInWithRedirect(auth, googleProvider);
         return;
       } catch (redirErr) {
@@ -302,7 +342,7 @@ async function triggerGoogleLogin() {
 
     if (err?.code !== "auth/popup-closed-by-user") {
       if (errBox && errText) {
-        errText.textContent = `تعذر تسجيل الدخول (${err?.code || "خطأ في الاتصال"}). تأكد من الاتصال بالإنترنت أو إعدادات المتصفح.`;
+        errText.textContent = `تعذر تسجيل الدخول (${err?.code || "خطأ اتصال"}). يرجى المحاولة مرة أخرى.`;
         errBox.classList.remove("hidden");
       }
     }
@@ -349,7 +389,8 @@ async function handleAuthUser(firebaseUser) {
 
     if (staffSnap.exists()) {
       profileData = { id: emailKey, email: emailKey, ...staffSnap.data() };
-      // إذا كان البريد ضمن القائمة السيادية، نضمن ترقيته الفورية دائماً إلى admin وتوثيقه
+
+      // إذا كان البريد ضمن القائمة السيادية، نضمن ترقيته الفورية دائماً
       if (isSuper && (profileData.role !== "admin" || !profileData.verified || profileData.suspended)) {
         profileData.role = "admin";
         profileData.verified = true;
@@ -361,25 +402,40 @@ async function handleAuthUser(firebaseUser) {
           { merge: true }
         );
       }
-    } else {
+
+      // تحديث تلقائي للصورة في حال لم يكن لدى الصحفي صورة محفوظة واستخدم صورة جوجل
+      if (!profileData.avatar && firebaseUser.photoURL) {
+        profileData.avatar = firebaseUser.photoURL;
+        await updateDoc(staffRef, { avatar: firebaseUser.photoURL }).catch(() => {});
+      }
+    } else if (isSuper) {
+      // فقط البريدان السياديان لـ أحمد رشاد يتم إنشاؤهما تلقائياً كقيادة عليا
       profileData = {
         id: emailKey,
         email: emailKey,
-        name: firebaseUser.displayName || emailKey.split("@")[0],
+        name: firebaseUser.displayName || "أحمد رشاد",
         avatar: firebaseUser.photoURL || "",
-        role: isSuper ? "admin" : "writer",
-        jobTitle: isSuper ? "المدير العام ورئيس التحرير" : "كاتب ومحرر صحفي",
-        verified: isSuper ? true : false,
-        requireReview: isSuper ? false : true,
+        role: "admin",
+        jobTitle: "المدير العام ورئيس التحرير",
+        verified: true,
+        requireReview: false,
         suspended: false,
         createdAt: serverTimestamp()
       };
       await setDoc(staffRef, profileData, { merge: true });
+    } else {
+      // إغلاق ثغرة الباب المفتوح: أي شخص آخر غير مضاف مسبقاً من القيادة يتم رفضه وطرده فوراً!
+      if (errBox && errText) {
+        errText.textContent = `عذراً، البريد (${emailKey}) غير مدرج ضمن الكادر الصحفي المعتمد في شبكة البوصلة. لا يمكنك الدخول إلا بعد اعتماد بريدك من قِبل القيادة العليا.`;
+        errBox.classList.remove("hidden");
+      }
+      await signOut(auth);
+      return;
     }
 
     if (profileData.suspended && !isSuper) {
       if (errBox && errText) {
-        errText.textContent = "تم تجميد حسابك مؤقتاً من قِبل إدارة التحرير. يرجى التواصل مع القيادة.";
+        errText.textContent = "تم تجميد حسابك الصحفي مؤقتاً بقرار من إدارة التحرير. يرجى مراجعة القيادة.";
         errBox.classList.remove("hidden");
       }
       await signOut(auth);
@@ -394,38 +450,17 @@ async function handleAuthUser(firebaseUser) {
     opsApp?.classList.remove("hidden");
 
     applyUserInterfacePermissions();
+    populateMyProfileTab();
+    startPersonalNotebookListener();
+
     if (!state.listenersStarted) {
       state.listenersStarted = true;
       startOpsRealtimeListeners();
     }
   } catch (err) {
-    console.error("Auth check error:", err);
-    // في حال حدوث تأخر في الشبكة وكان البريد سيادياً، نفتحه بصلاحيات كاملة فوراً
-    if (isSuper) {
-      state.currentUser = firebaseUser;
-      state.userProfile = {
-        id: emailKey,
-        email: emailKey,
-        name: firebaseUser.displayName || "المدير العام",
-        avatar: firebaseUser.photoURL || "",
-        role: "admin",
-        jobTitle: "المدير العام ورئيس التحرير",
-        verified: true,
-        requireReview: false,
-        suspended: false
-      };
-      authScreen?.classList.add("hidden");
-      opsApp?.classList.remove("hidden");
-      applyUserInterfacePermissions();
-      if (!state.listenersStarted) {
-        state.listenersStarted = true;
-        startOpsRealtimeListeners();
-      }
-      return;
-    }
-
+    console.error("Auth gate error:", err);
     if (errBox && errText) {
-      errText.textContent = "حدث خطأ أثناء التحقق من الصلاحيات. تأكد من اتصالك بالإنترنت.";
+      errText.textContent = "تعذر التحقق من سجل الكادر الصحفي. تأكد من اتصالك بالإنترنت.";
       errBox.classList.remove("hidden");
     }
   }
@@ -435,40 +470,77 @@ function applyUserInterfacePermissions() {
   const p = state.userProfile;
   if (!p) return;
 
-  const effectiveRole = isUserAdmin() ? "admin" : p.role;
+  const adminFlag = isUserAdmin();
+  const editorOrAdminFlag = isUserEditorOrAdmin();
+  const effectiveRole = adminFlag ? "admin" : p.role || "writer";
 
   const nameEl = document.getElementById("current-user-name");
   if (nameEl) nameEl.textContent = p.name || p.email;
 
+  const avatarUrl =
+    p.avatar ||
+    state.currentUser?.photoURL ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || "صحفي")}&background=1d4ed8&color=fff`;
+
   const avatarEl = document.getElementById("current-user-avatar");
-  if (avatarEl) {
-    avatarEl.src =
-      p.avatar ||
-      state.currentUser?.photoURL ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || "محرر")}&background=1d4ed8&color=fff`;
-  }
+  if (avatarEl) avatarEl.src = avatarUrl;
 
   const roleBadge = document.getElementById("current-user-role-badge");
   if (roleBadge) roleBadge.textContent = getRoleArabicName(effectiveRole);
 
   const verIcon = document.getElementById("current-user-verified");
-  if (verIcon) verIcon.classList.toggle("hidden", !(p.verified || isUserAdmin()));
+  if (verIcon) verIcon.classList.toggle("hidden", !(p.verified || adminFlag));
 
-  const adminOnlyIds = [
-    "nav-tab-staff",
-    "nav-tab-settings",
-    "dock-btn-staff",
-    "dock-btn-settings"
+  // عزل التبويبات والأزرار السيادية عن الكاتب العادي تماماً
+  const adminOnlyIds = ["nav-tab-staff", "nav-tab-settings", "dock-btn-staff"];
+  const editorOrAdminIds = [
+    "nav-tab-compasses",
+    "nav-tab-ads",
+    "magic-opt-ad",
+    "ops-filter-author",
+    "post-is-featured"
   ];
-  const editorOrAdminIds = ["nav-tab-compasses", "nav-tab-ads", "dock-btn-compasses"];
 
   adminOnlyIds.forEach((id) => {
-    document.getElementById(id)?.classList.toggle("hidden", !isUserAdmin());
-  });
-  editorOrAdminIds.forEach((id) => {
-    document.getElementById(id)?.classList.toggle("hidden", !isUserEditorOrAdmin());
+    document.getElementById(id)?.classList.toggle("hidden", !adminFlag);
   });
 
+  // في الشريط السفلي للهاتف: إذا لم يكن مديراً، نظهر له زر "الميثاق" بدلاً من زر "الكادر"
+  document.getElementById("dock-btn-charter")?.classList.toggle("hidden", adminFlag);
+
+  editorOrAdminIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id === "post-is-featured") {
+      el.closest(".check-pill")?.classList.toggle("hidden", !editorOrAdminFlag);
+    } else {
+      el.classList.toggle("hidden", !editorOrAdminFlag);
+    }
+  });
+
+  // تخصيص العناوين الإحصائية لتعكس العزل الشخصي للكاتب أو الشمولية للقيادة
+  const setTxt = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  if (editorOrAdminFlag) {
+    setTxt("nav-label-dashboard", "لوحة المتابعة الشاملة");
+    setTxt("dashboard-panel-heading", "إدارة كافة منشورات الشبكة والمراجعة");
+    setTxt("stat-label-published", "إجمالي المنشور بالشبكة");
+    setTxt("stat-label-review", "مقالات بانتظار المراجعة");
+    setTxt("stat-label-draftOrBreaking", "عواجل وأخبار سريعة نشطة");
+    setTxt("stat-label-views", "إجمالي قراءات الشبكة");
+  } else {
+    setTxt("nav-label-dashboard", "مقالاتي ومنشوراتي");
+    setTxt("dashboard-panel-heading", "إدارة مقالاتي ومسوداتي الخاصة");
+    setTxt("stat-label-published", "مقالاتي المنشورة");
+    setTxt("stat-label-review", "مقالاتي قيد المراجعة");
+    setTxt("stat-label-draftOrBreaking", "مسوداتي وملاحظاتي");
+    setTxt("stat-label-views", "إجمالي قراءات مقالاتي");
+  }
+
+  // عرض التنبيه الإداري الموجه للصحفي إن وجد
   const alertBar = document.getElementById("staff-alert-bar");
   const alertMsg = document.getElementById("staff-alert-message");
   if (p.adminAlert && p.adminAlert.trim() !== "") {
@@ -478,12 +550,13 @@ function applyUserInterfacePermissions() {
     alertBar?.classList.add("hidden");
   }
 
+  // تحديث إشعار حالة النشر في المحرر
   const noticeText = document.getElementById("writer-publishing-notice-text");
   const publishBtnLabel = document.getElementById("publish-btn-label");
   if (canUserPublishDirectly()) {
     if (noticeText) {
       noticeText.textContent =
-        "تتمتع بصلاحية النشر المباشر الكاملة (القيادة العليا / صحفي موثق). أي مادة تعتمدها ستُنشر فوراً في الموقع العام.";
+        "تتمتع بصلاحية النشر المباشر المعتمدة. أي مادة تعتمدها ستُنشر فوراً في الموقع العام باسمك وصورتك.";
     }
     if (publishBtnLabel) publishBtnLabel.textContent = "نشر فوري في الموقع العام";
   } else {
@@ -495,7 +568,388 @@ function applyUserInterfacePermissions() {
   }
 }
 
-// ==================== 6. الإعدادات السيادية والميثاق الصحفي ====================
+// ==================== 6. قسم "دفتر الملاحظات" الشخصي للصحفي (Journalist Notebook) ====================
+function startPersonalNotebookListener() {
+  if (state.notesUnsubscribe) {
+    state.notesUnsubscribe();
+    state.notesUnsubscribe = null;
+  }
+  const myEmail = (state.userProfile?.email || state.currentUser?.email || "").trim().toLowerCase();
+  if (!myEmail) return;
+
+  const notesQuery = query(collection(db, "notes"), where("ownerEmail", "==", myEmail));
+  state.notesUnsubscribe = onSnapshot(
+    notesQuery,
+    (snap) => {
+      state.notes = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          if (Boolean(b.pinned) !== Boolean(a.pinned)) return b.pinned ? 1 : -1;
+          return getPostTimestampMs(b) - getPostTimestampMs(a);
+        });
+      renderNotebookGrid(document.getElementById("notebook-search")?.value || "");
+      updateDashboardStats();
+    },
+    (err) => console.warn("Notebook sync warning:", err)
+  );
+}
+
+function renderNotebookGrid(searchFilter = "") {
+  const grid = document.getElementById("notebook-notes-grid");
+  if (!grid) return;
+
+  const q = searchFilter.trim().toLowerCase();
+  const list = state.notes.filter((n) => {
+    if (!q) return true;
+    return `${n.title || ""} ${n.content || ""} ${n.category || ""}`.toLowerCase().includes(q);
+  });
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">دفتر ملاحظاتك فارغ حالياً. دوّن أفكار مقالاتك، مصادرك، ومسوداتك السريعة من النموذج الجانبي.</div>`;
+    return;
+  }
+
+  grid.innerHTML = list
+    .map((n) => {
+      const colorClass = n.color && n.color !== "default" ? `note-${n.color}` : "";
+      return `
+        <article class="note-card ${escapeHtml(colorClass)}">
+          <div>
+            <div class="note-card-header">
+              <div>
+                <span class="role-badge" style="margin-bottom:4px;display:inline-block;">${escapeHtml(
+                  n.category || "ملاحظة"
+                )}</span>
+                <h3 class="note-card-title">${escapeHtml(n.title)}</h3>
+              </div>
+              ${
+                n.pinned
+                  ? `<span class="material-symbols-rounded" style="color:var(--primary);" translate="no" title="مثبتة">push_pin</span>`
+                  : ""
+              }
+            </div>
+            <div class="note-card-body" style="margin-top:8px;">${escapeHtml(n.content)}</div>
+          </div>
+
+          <div>
+            <div class="note-card-footer">
+              <span>${formatArabicDate(n.updatedAt || n.createdAt)}</span>
+            </div>
+            <div class="ops-post-actions" style="margin-top:8px;">
+              <button type="button" class="btn-primary sm-btn" data-note-to-editor="${escapeHtml(n.id)}" title="نقل هذه الفكرة إلى محرر المقالات">
+                <span class="material-symbols-rounded" translate="no">send_to_mobile</span>
+                <span>تحويل لمقال</span>
+              </button>
+              <button type="button" class="btn-outline sm-btn" data-note-edit="${escapeHtml(n.id)}">
+                <span class="material-symbols-rounded" translate="no">edit</span>
+                <span>تعديل</span>
+              </button>
+              <button type="button" class="btn-outline sm-btn" data-note-pin="${escapeHtml(n.id)}" title="تثبيت / إلغاء تثبيت">
+                <span class="material-symbols-rounded" translate="no">push_pin</span>
+              </button>
+              <button type="button" class="btn-outline sm-btn danger-icon-btn" data-note-del="${escapeHtml(n.id)}" title="حذف الملاحظة">
+                <span class="material-symbols-rounded" translate="no">delete</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  grid.querySelectorAll("[data-note-to-editor]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const note = state.notes.find((x) => x.id === btn.getAttribute("data-note-to-editor"));
+      if (!note) return;
+      resetArticleEditor();
+      switchOpsTab("editor");
+      document.getElementById("post-title").value = note.title || "";
+      document.getElementById("post-content").value = note.content || "";
+      showOpsToast("تم نقل الملاحظة إلى محرر المقالات لاستكمال كتابتها");
+    });
+  });
+
+  grid.querySelectorAll("[data-note-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const note = state.notes.find((x) => x.id === btn.getAttribute("data-note-edit"));
+      if (!note) return;
+      document.getElementById("note-form-title").textContent = `تعديل: ${note.title}`;
+      document.getElementById("note-edit-id").value = note.id;
+      document.getElementById("note-title").value = note.title || "";
+      document.getElementById("note-category").value = note.category || "فكرة مقال";
+      document.getElementById("note-color").value = note.color || "default";
+      document.getElementById("note-content").value = note.content || "";
+      document.getElementById("note-pinned").checked = Boolean(note.pinned);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  grid.querySelectorAll("[data-note-pin]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-note-pin");
+      const note = state.notes.find((x) => x.id === id);
+      if (!note) return;
+      await updateDoc(doc(db, "notes", id), { pinned: !note.pinned });
+    });
+  });
+
+  grid.querySelectorAll("[data-note-del]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-note-del");
+      if (!window.confirm("هل تريد حذف هذه الملاحظة من دفترك؟")) return;
+      await deleteDoc(doc(db, "notes", id));
+      showOpsToast("تم حذف الملاحظة");
+    });
+  });
+}
+
+function resetNoteForm() {
+  document.getElementById("note-form-title").textContent = "تدوين ملاحظة أو فكرة جديدة";
+  document.getElementById("note-edit-id").value = "";
+  document.getElementById("notebook-form")?.reset();
+}
+
+async function saveNotebookItem(e) {
+  e.preventDefault();
+  const myEmail = (state.userProfile?.email || state.currentUser?.email || "").trim().toLowerCase();
+  if (!myEmail) return;
+
+  const editId = (document.getElementById("note-edit-id")?.value || "").trim();
+  const title = (document.getElementById("note-title")?.value || "").trim();
+  const content = (document.getElementById("note-content")?.value || "").trim();
+  if (!title || !content) return;
+
+  const payload = {
+    ownerEmail: myEmail,
+    title,
+    category: document.getElementById("note-category")?.value || "فكرة مقال",
+    color: document.getElementById("note-color")?.value || "default",
+    content,
+    pinned: Boolean(document.getElementById("note-pinned")?.checked),
+    updatedAt: serverTimestamp()
+  };
+
+  try {
+    if (editId) {
+      await setDoc(doc(db, "notes", editId), payload, { merge: true });
+    } else {
+      await addDoc(collection(db, "notes"), { ...payload, createdAt: serverTimestamp() });
+    }
+    showOpsToast("تم حفظ الملاحظة في دفترك الخاص");
+    resetNoteForm();
+  } catch (err) {
+    console.error("Save note error:", err);
+    showOpsToast("تعذر حفظ الملاحظة");
+  }
+}
+
+// ==================== 7. قسم "ملفي الشخصي والتوثيق (KYC)" + مزامنة صور الكاتب ====================
+function populateMyProfileTab() {
+  const p = state.userProfile;
+  if (!p) return;
+
+  const avatarUrl =
+    p.avatar ||
+    state.currentUser?.photoURL ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || "صحفي")}&background=1d4ed8&color=fff`;
+
+  const cardAvatar = document.getElementById("my-profile-card-avatar");
+  if (cardAvatar) cardAvatar.src = avatarUrl;
+
+  const cardName = document.getElementById("my-profile-card-name");
+  if (cardName) cardName.textContent = p.name || "";
+
+  const cardVer = document.getElementById("my-profile-card-verified");
+  if (cardVer) cardVer.classList.toggle("hidden", !(p.verified || isUserAdmin()));
+
+  const cardRole = document.getElementById("my-profile-card-role");
+  if (cardRole) cardRole.textContent = p.jobTitle || getRoleArabicName(p.role);
+
+  // إشعار الاسم قيد المراجعة إن وجد
+  const pendingBox = document.getElementById("my-profile-pending-name-box");
+  const pendingTxt = document.getElementById("my-profile-pending-name-text");
+  if (p.pendingName && p.pendingName.trim() !== "") {
+    if (pendingTxt) {
+      pendingTxt.textContent = `طلب تغيير الاسم إلى "${p.pendingName}" قيد المراجعة لدى القيادة العليا.`;
+    }
+    pendingBox?.classList.remove("hidden");
+  } else {
+    pendingBox?.classList.add("hidden");
+  }
+
+  // تعبئة حقول التعديل الشخصي
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setVal("my-prof-name", p.name || "");
+  setVal("my-prof-job", p.jobTitle || "");
+  setVal("my-prof-email", p.email || "");
+  setVal("my-prof-phone", p.phone || "");
+  setVal("my-prof-avatar", p.avatar || "");
+  setVal("my-prof-bio", p.bio || "");
+  setVal("my-prof-x", p.socials?.x || "");
+  setVal("my-prof-fb", p.socials?.facebook || "");
+
+  // حالة قسم التوثيق KYC
+  const kycDesc = document.getElementById("kyc-status-desc");
+  const kycForm = document.getElementById("kyc-request-form");
+  if (p.verified || isUserAdmin()) {
+    if (kycDesc) {
+      kycDesc.innerHTML = `<strong style="color:var(--success);">حسابك موثق رسمياً بالشارة الزرقاء المعتمدة في شبكة البوصلة.</strong>`;
+    }
+    kycForm?.classList.add("hidden");
+  } else if (p.kycStatus === "pending") {
+    if (kycDesc) {
+      kycDesc.innerHTML = `<strong style="color:var(--warning);">طلب التوثيق الخاص بك قيد المراجعة حالياً لدى القيادة العليا.</strong>`;
+    }
+    kycForm?.classList.add("hidden");
+  } else {
+    kycForm?.classList.remove("hidden");
+  }
+}
+
+// مزامنة صورة الكاتب واسمه في جميع مقالاته المنشورة لضمان ظهورها في كل مكان بالموقع العام
+async function syncWriterIdentityAcrossPosts(emailKey, newAvatar, newName, isVerified) {
+  try {
+    const myPosts = state.posts.filter(
+      (post) => (post.authorEmail || "").trim().toLowerCase() === emailKey.toLowerCase()
+    );
+    for (const post of myPosts) {
+      const updates = {};
+      if (newAvatar !== undefined) updates.authorAvatar = newAvatar;
+      if (newName !== undefined) updates.author = newName;
+      if (isVerified !== undefined) updates.authorVerified = Boolean(isVerified);
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(doc(db, "posts", post.id), updates).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn("Sync writer posts notice:", err);
+  }
+}
+
+async function saveMyPersonalProfile(e) {
+  e.preventDefault();
+  const p = state.userProfile;
+  if (!p) return;
+
+  const oldEmail = (p.email || p.id || "").trim().toLowerCase();
+  const newEmail = (document.getElementById("my-prof-email")?.value || "").trim().toLowerCase();
+  const requestedName = (document.getElementById("my-prof-name")?.value || "").trim();
+  const jobTitle = (document.getElementById("my-prof-job")?.value || "").trim();
+  const phone = (document.getElementById("my-prof-phone")?.value || "").trim();
+  const avatar = (document.getElementById("my-prof-avatar")?.value || "").trim();
+  const bio = (document.getElementById("my-prof-bio")?.value || "").trim();
+  const socialX = (document.getElementById("my-prof-x")?.value || "").trim();
+  const socialFb = (document.getElementById("my-prof-fb")?.value || "").trim();
+
+  if (!newEmail || !requestedName) {
+    showOpsToast("الاسم والبريد الإلكتروني حقول أساسية لا يمكن تركها فارغة");
+    return;
+  }
+
+  // تطبيق شرطك الأمني: المدير يغير اسمه فوراً، أما الصحفي فإذا غيّر اسمه يُحال الاسم الجديد للمراجعة!
+  let finalName = p.name;
+  let pendingName = p.pendingName || "";
+
+  if (requestedName !== p.name) {
+    if (isUserAdmin()) {
+      finalName = requestedName;
+      pendingName = "";
+    } else {
+      pendingName = requestedName;
+    }
+  }
+
+  const updatedProfile = {
+    ...p,
+    name: finalName,
+    pendingName,
+    email: newEmail,
+    phone,
+    jobTitle: jobTitle || p.jobTitle || "كاتب ومحرر صحفي",
+    avatar,
+    bio,
+    socials: {
+      ...(p.socials || {}),
+      x: socialX,
+      facebook: socialFb
+    },
+    updatedAt: serverTimestamp()
+  };
+
+  try {
+    if (newEmail !== oldEmail) {
+      // ترحيل ملف الصحفي ومقالاته وملاحظاته إلى بريده الجديد بسلاسة
+      await setDoc(doc(db, "staff", newEmail), updatedProfile, { merge: true });
+      for (const post of state.posts) {
+        if ((post.authorEmail || "").toLowerCase() === oldEmail) {
+          await updateDoc(doc(db, "posts", post.id), {
+            authorEmail: newEmail,
+            authorAvatar: avatar
+          }).catch(() => {});
+        }
+      }
+      for (const note of state.notes) {
+        await updateDoc(doc(db, "notes", note.id), { ownerEmail: newEmail }).catch(() => {});
+      }
+      if (!isSuperAdminEmail(oldEmail)) {
+        await deleteDoc(doc(db, "staff", oldEmail)).catch(() => {});
+      }
+      state.userProfile = { ...updatedProfile, id: newEmail };
+      showOpsToast(`تم تحديث بياناتك وترحيل حسابك إلى البريد الجديد (${newEmail})`);
+    } else {
+      await setDoc(doc(db, "staff", oldEmail), updatedProfile, { merge: true });
+      state.userProfile = { ...updatedProfile, id: oldEmail };
+      await syncWriterIdentityAcrossPosts(oldEmail, avatar, finalName, p.verified);
+
+      if (pendingName && pendingName !== p.name) {
+        showOpsToast("تم حفظ بياناتك وصورتك، وإحالة طلب تغيير الاسم لموافقة القيادة العليا");
+      } else {
+        showOpsToast("تم حفظ وتحديث بياناتك وصورتك الشخصية في الموقع بنجاح");
+      }
+    }
+
+    applyUserInterfacePermissions();
+    populateMyProfileTab();
+  } catch (err) {
+    console.error("Update personal profile error:", err);
+    showOpsToast("تعذر تحديث الملف الشخصي، تحقق من اتصالك");
+  }
+}
+
+async function submitKycVerificationRequest(e) {
+  e.preventDefault();
+  const p = state.userProfile;
+  if (!p) return;
+
+  const docUrl = (document.getElementById("kyc-doc-url")?.value || "").trim();
+  const note = (document.getElementById("kyc-note")?.value || "").trim();
+
+  if (!docUrl && !note) {
+    showOpsToast("يرجى رفع صورة الوثيقة أو كتابة توضيح لطلب التوثيق");
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, "staff", p.id), {
+      kycStatus: "pending",
+      kycDocUrl: docUrl,
+      kycNote: note,
+      kycRequestedAt: serverTimestamp()
+    });
+    state.userProfile.kycStatus = "pending";
+    populateMyProfileTab();
+    showOpsToast("تم إرسال طلب التوثيق بالشارة الزرقاء إلى القيادة العليا بنجاح");
+  } catch (err) {
+    console.error("KYC request error:", err);
+    showOpsToast("تعذر إرسال طلب التوثيق");
+  }
+}
+
+// ==================== 8. الإعدادات السيادية والميثاق الصحفي ====================
 function populateSettingsForm() {
   const s = state.settings;
   const setVal = (id, val) => {
@@ -566,7 +1020,7 @@ async function saveSovereignSettings(e) {
   }
 }
 
-// ==================== 7. إدارة الكادر الصحفي ومنظومة الترحيب التلقائي ====================
+// ==================== 9. إدارة الكادر الصحفي، مراجعة طلبات التوثيق والأسماء، والترحيب ====================
 function buildStaffWelcomeMessage(member) {
   const siteName = state.settings.siteName || "شبكة البوصلة";
   const opsUrl = window.location.origin + window.location.pathname;
@@ -618,7 +1072,117 @@ function sendStaffWelcomeEmail(member) {
   window.open(gmailUrl, "_blank", "noopener");
 }
 
+// عرض طلبات التوثيق (KYC) وطلبات تغيير الاسم للقيادة العليا
+function renderStaffPendingRequests() {
+  const panel = document.getElementById("staff-pending-requests-panel");
+  const listEl = document.getElementById("staff-pending-requests-list");
+  const badgeEl = document.getElementById("staff-requests-badge");
+  if (!panel || !listEl) return;
+
+  const pendingItems = state.staff.filter(
+    (s) => (s.pendingName && s.pendingName.trim() !== "") || s.kycStatus === "pending"
+  );
+
+  if (badgeEl) {
+    badgeEl.textContent = String(pendingItems.length);
+    badgeEl.classList.toggle("hidden", pendingItems.length === 0);
+  }
+
+  if (!pendingItems.length || !isUserAdmin()) {
+    panel.classList.add("hidden");
+    return;
+  }
+
+  panel.classList.remove("hidden");
+  listEl.innerHTML = pendingItems
+    .map((s) => {
+      const hasNameReq = s.pendingName && s.pendingName.trim() !== "";
+      const hasKycReq = s.kycStatus === "pending";
+
+      return `
+        <article class="staff-member-card" style="background:#fffbeb;border-color:#fde68a;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <strong>الصحفي: ${escapeHtml(s.name)} (${escapeHtml(s.email)})</strong>
+
+            ${
+              hasNameReq
+                ? `<div class="alert-banner alert-warning">
+                    <span>يطلب تغيير اسمه الصحفي إلى: <strong>"${escapeHtml(s.pendingName)}"</strong></span>
+                    <div style="display:flex;gap:6px;">
+                      <button type="button" class="btn-success sm-btn" data-approve-name="${escapeHtml(s.id)}">اعتماد الاسم</button>
+                      <button type="button" class="btn-danger sm-btn" data-reject-name="${escapeHtml(s.id)}">رفض</button>
+                    </div>
+                  </div>`
+                : ""
+            }
+
+            ${
+              hasKycReq
+                ? `<div class="alert-banner alert-info">
+                    <div>
+                      <span><strong>طلب توثيق بالشارة الزرقاء (KYC):</strong> ${escapeHtml(s.kycNote || "بدون ملاحظة")}</span>
+                      ${
+                        s.kycDocUrl
+                          ? ` — <a href="${escapeHtml(s.kycDocUrl)}" target="_blank" rel="noopener" style="color:var(--primary);font-weight:900;text-decoration:underline;">فتح صورة الوثيقة المرفقة</a>`
+                          : ""
+                      }
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                      <button type="button" class="btn-success sm-btn" data-approve-kyc="${escapeHtml(s.id)}">توثيق ومنح الشارة</button>
+                      <button type="button" class="btn-danger sm-btn" data-reject-kyc="${escapeHtml(s.id)}">رفض الطلب</button>
+                    </div>
+                  </div>`
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  listEl.querySelectorAll("[data-approve-name]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-approve-name");
+      const member = state.staff.find((x) => x.id === id);
+      if (!member || !member.pendingName) return;
+      const newApprovedName = member.pendingName;
+      await updateDoc(doc(db, "staff", id), { name: newApprovedName, pendingName: "" });
+      await syncWriterIdentityAcrossPosts(id, member.avatar, newApprovedName, member.verified);
+      showOpsToast(`تم اعتماد الاسم الجديد (${newApprovedName}) وتحديثه في المقالات`);
+    });
+  });
+
+  listEl.querySelectorAll("[data-reject-name]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-reject-name");
+      await updateDoc(doc(db, "staff", id), { pendingName: "" });
+      showOpsToast("تم رفض طلب تغيير الاسم");
+    });
+  });
+
+  listEl.querySelectorAll("[data-approve-kyc]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-approve-kyc");
+      const member = state.staff.find((x) => x.id === id);
+      if (!member) return;
+      await updateDoc(doc(db, "staff", id), { verified: true, kycStatus: "approved" });
+      await syncWriterIdentityAcrossPosts(id, member.avatar, member.name, true);
+      showOpsToast(`تم توثيق (${member.name}) بالشارة الزرقاء بنجاح`);
+    });
+  });
+
+  listEl.querySelectorAll("[data-reject-kyc]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-reject-kyc");
+      await updateDoc(doc(db, "staff", id), { kycStatus: "rejected" });
+      showOpsToast("تم رفض طلب التوثيق");
+    });
+  });
+}
+
 function renderStaffList(filterQuery = "") {
+  renderStaffPendingRequests();
+
   const listEl = document.getElementById("ops-staff-list");
   if (!listEl) return;
 
@@ -810,23 +1374,33 @@ async function saveStaffMember(e) {
     return;
   }
 
+  const avatar = (document.getElementById("staff-avatar")?.value || "").trim();
+  const verified = isSuperAdminEmail(emailKey)
+    ? true
+    : Boolean(document.getElementById("staff-verified")?.checked);
+
   const payload = {
     name,
     email: emailKey,
     phone: (document.getElementById("staff-phone")?.value || "").trim(),
-    role: isSuperAdminEmail(emailKey) ? "admin" : (document.getElementById("staff-role")?.value || "writer"),
+    role: isSuperAdminEmail(emailKey) ? "admin" : document.getElementById("staff-role")?.value || "writer",
     jobTitle: (document.getElementById("staff-job-title")?.value || "").trim() || "كاتب ومحرر صحفي",
-    avatar: (document.getElementById("staff-avatar")?.value || "").trim(),
+    avatar,
     bio: (document.getElementById("staff-bio")?.value || "").trim(),
-    verified: isSuperAdminEmail(emailKey) ? true : Boolean(document.getElementById("staff-verified")?.checked),
-    requireReview: isSuperAdminEmail(emailKey) ? false : Boolean(document.getElementById("staff-require-review")?.checked),
-    suspended: isSuperAdminEmail(emailKey) ? false : Boolean(document.getElementById("staff-suspended")?.checked),
+    verified,
+    requireReview: isSuperAdminEmail(emailKey)
+      ? false
+      : Boolean(document.getElementById("staff-require-review")?.checked),
+    suspended: isSuperAdminEmail(emailKey)
+      ? false
+      : Boolean(document.getElementById("staff-suspended")?.checked),
     updatedAt: serverTimestamp()
   };
 
   try {
     await setDoc(doc(db, "staff", emailKey), payload, { merge: true });
-    showOpsToast(`تم حفظ بيانات الصحفي (${name}) بنجاح`);
+    await syncWriterIdentityAcrossPosts(emailKey, avatar, name, verified);
+    showOpsToast(`تم اعتماد وحفظ بيانات الصحفي (${name}) ومزامنة صورته بنجاح`);
     resetStaffForm();
   } catch (err) {
     console.error("Save staff error:", err);
@@ -834,7 +1408,7 @@ async function saveStaffMember(e) {
   }
 }
 
-// ==================== 8. إدارة البوصلات والأقسام والفئات الفرعية ====================
+// ==================== 10. إدارة البوصلات والأقسام والإعلانات ====================
 function renderCompassesManagerList() {
   const listEl = document.getElementById("ops-compasses-list");
   if (!listEl) return;
@@ -850,7 +1424,9 @@ function renderCompassesManagerList() {
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
               <div style="display:flex;align-items:center;gap:8px;">
-                <span class="material-symbols-rounded" style="color:${c.color || "#b91c1c"};" translate="no">${c.icon || "explore"}</span>
+                <span class="material-symbols-rounded" style="color:${c.color || "#b91c1c"};" translate="no">${
+        c.icon || "explore"
+      }</span>
                 <strong>${escapeHtml(c.name)}</strong>
               </div>
               <span class="status-pill ${isVisible ? "status-published" : "status-draft"}">
@@ -860,7 +1436,9 @@ function renderCompassesManagerList() {
             <p style="font-size:0.78rem;color:var(--text-muted);margin:6px 0;">${escapeHtml(c.description || "")}</p>
             ${
               subs.length
-                ? `<div style="font-size:0.74rem;color:var(--text-secondary);"><strong>الفئات الفرعية:</strong> ${subs.map(escapeHtml).join(" ، ")}</div>`
+                ? `<div style="font-size:0.74rem;color:var(--text-secondary);"><strong>الفئات الفرعية:</strong> ${subs
+                    .map(escapeHtml)
+                    .join(" ، ")}</div>`
                 : ""
             }
           </div>
@@ -872,11 +1450,15 @@ function renderCompassesManagerList() {
             </button>
 
             <button type="button" class="btn-outline sm-btn" data-compass-toggle="${escapeHtml(c.id)}">
-              <span class="material-symbols-rounded" translate="no">${isVisible ? "visibility_off" : "visibility"}</span>
+              <span class="material-symbols-rounded" translate="no">${
+                isVisible ? "visibility_off" : "visibility"
+              }</span>
               <span>${isVisible ? "إخفاء" : "إظهار"}</span>
             </button>
 
-            <button type="button" class="btn-outline sm-btn danger-icon-btn" data-compass-del="${escapeHtml(c.id)}" title="حذف القسم">
+            <button type="button" class="btn-outline sm-btn danger-icon-btn" data-compass-del="${escapeHtml(
+              c.id
+            )}" title="حذف القسم">
               <span class="material-symbols-rounded" translate="no">delete</span>
             </button>
           </div>
@@ -941,6 +1523,8 @@ function resetCompassForm() {
 
 async function saveCompassItem(e) {
   e.preventDefault();
+  if (!isUserEditorOrAdmin()) return;
+
   const editId = (document.getElementById("compass-edit-id")?.value || "").trim();
   const name = (document.getElementById("compass-name")?.value || "").trim();
   if (!name) return;
@@ -976,6 +1560,7 @@ async function saveCompassItem(e) {
 }
 
 async function seedDefaultCompassesToDb() {
+  if (!isUserEditorOrAdmin()) return;
   try {
     for (const comp of DEFAULT_COMPASSES) {
       await setDoc(doc(db, "categories", comp.id), comp, { merge: true });
@@ -987,7 +1572,6 @@ async function seedDefaultCompassesToDb() {
   }
 }
 
-// ==================== 9. إدارة الإعلانات والرعايات (Ads Manager) ====================
 function renderAdsManagerList() {
   const listEl = document.getElementById("ops-ads-list");
   if (!listEl) return;
@@ -1010,7 +1594,7 @@ function renderAdsManagerList() {
               </span>
             </div>
             <p style="font-size:0.78rem;color:var(--text-muted);margin:4px 0;">
-              الراعي: ${escapeHtml(ad.sponsorName || "شركاء البوصلة")} | النقرات: <strong>${ad.clicks || 0}</strong>
+              الراعي: ${escapeHtml(ad.sponsorName || "شركاء البوصلة")} | النقرات الفعلية: <strong>${ad.clicks || 0}</strong>
             </p>
           </div>
 
@@ -1021,7 +1605,9 @@ function renderAdsManagerList() {
             </button>
 
             <button type="button" class="btn-outline sm-btn" data-ad-toggle="${escapeHtml(ad.id)}">
-              <span class="material-symbols-rounded" translate="no">${isActive ? "pause_circle" : "play_circle"}</span>
+              <span class="material-symbols-rounded" translate="no">${
+                isActive ? "pause_circle" : "play_circle"
+              }</span>
               <span>${isActive ? "إيقاف" : "تفعيل"}</span>
             </button>
 
@@ -1081,6 +1667,8 @@ function resetAdForm() {
 
 async function saveAdItem(e) {
   e.preventDefault();
+  if (!isUserEditorOrAdmin()) return;
+
   const editId = (document.getElementById("ad-edit-id")?.value || "").trim();
   const title = (document.getElementById("ad-title")?.value || "").trim();
   const targetUrl = (document.getElementById("ad-target-url")?.value || "").trim();
@@ -1110,862 +1698,4 @@ async function saveAdItem(e) {
   }
 }
 
-// ==================== 10. تحديث قوائم البوصلات والكتّاب في الفلاتر والمحرر ====================
-function getActiveCompassesList() {
-  return [...state.compasses].sort((a, b) => (a.order || 99) - (b.order || 99));
-}
-
-function getPostCompasses(post) {
-  const list = [];
-  if (Array.isArray(post.categories)) list.push(...post.categories);
-  if (post.category && !list.includes(post.category)) list.push(post.category);
-  if (post.compassId && !list.includes(post.compassId)) list.push(post.compassId);
-  return list.length ? list : ["بوصلة السياسة اليمنية"];
-}
-
-function isBreakingStillActive(post) {
-  if (!post || !post.isBreaking) return false;
-  const now = Date.now();
-  if (post.breakingExpiresAt) {
-    const exp =
-      typeof post.breakingExpiresAt === "number"
-        ? post.breakingExpiresAt
-        : new Date(post.breakingExpiresAt).getTime();
-    if (exp && now > exp) return false;
-  } else if (post.breakingDurationHours) {
-    const createdMs = getPostTimestampMs(post);
-    const durationMs = Number(post.breakingDurationHours) * 3600 * 1000;
-    if (createdMs && durationMs > 0 && now > createdMs + durationMs) return false;
-  }
-  return true;
-}
-
-function populateCompassSelectorsAndFilters() {
-  const compasses = getActiveCompassesList();
-
-  const filterCompass = document.getElementById("ops-filter-compass");
-  if (filterCompass) {
-    const currentVal = filterCompass.value || "all";
-    filterCompass.innerHTML = [
-      `<option value="all">جميع البوصلات والأقسام</option>`,
-      ...compasses.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`)
-    ].join("");
-    filterCompass.value = currentVal;
-  }
-
-  const quickCompass = document.getElementById("quick-news-compass");
-  if (quickCompass) {
-    quickCompass.innerHTML = compasses
-      .map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`)
-      .join("");
-  }
-
-  const multiGrid = document.getElementById("multi-compass-selector");
-  if (multiGrid) {
-    const currentlyChecked = Array.from(
-      multiGrid.querySelectorAll('input[name="post-compass-item"]:checked')
-    ).map((el) => el.value);
-
-    multiGrid.innerHTML = compasses
-      .map((c, idx) => {
-        const isChecked = currentlyChecked.length
-          ? currentlyChecked.includes(c.name)
-          : idx === 0;
-        return `
-          <label class="compass-check-item">
-            <input type="checkbox" name="post-compass-item" value="${escapeHtml(c.name)}" ${
-              isChecked ? "checked" : ""
-            }>
-            <span class="material-symbols-rounded" style="font-size:17px;color:${
-              c.color || "var(--primary)"
-            };" translate="no">${c.icon || "explore"}</span>
-            <span>${escapeHtml(c.name)}</span>
-          </label>
-        `;
-      })
-      .join("");
-  }
-
-  const subDatalist = document.getElementById("subcategories-datalist");
-  if (subDatalist) {
-    const allSubs = new Set();
-    compasses.forEach((c) => {
-      if (Array.isArray(c.subcategories)) {
-        c.subcategories.forEach((s) => allSubs.add(s));
-      }
-    });
-    subDatalist.innerHTML = Array.from(allSubs)
-      .map((s) => `<option value="${escapeHtml(s)}"></option>`)
-      .join("");
-  }
-}
-
-function populateAuthorFilterDropdown() {
-  const authorSelect = document.getElementById("ops-filter-author");
-  if (!authorSelect) return;
-
-  const currentVal = authorSelect.value || "all";
-  const authorsSet = new Set();
-
-  state.staff.forEach((s) => {
-    if (s.name) authorsSet.add(s.name);
-  });
-  state.posts.forEach((p) => {
-    if (p.author) authorsSet.add(p.author);
-  });
-
-  authorSelect.innerHTML = [
-    `<option value="all">جميع الكتّاب</option>`,
-    ...Array.from(authorsSet).map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
-  ].join("");
-  authorSelect.value = currentVal;
-}
-
-// ==================== 11. لوحة المتابعة، الإحصائيات السرية، وفلترة المنشورات ====================
-function updateDashboardStats() {
-  const publishedCount = state.posts.filter(
-    (p) => !p.status || p.status === "published"
-  ).length;
-  const reviewCount = state.posts.filter(
-    (p) => p.status === "review" || p.status === "pending"
-  ).length;
-  const breakingCount = state.posts.filter(
-    (p) => (!p.status || p.status === "published") && (isBreakingStillActive(p) || p.isQuickNews)
-  ).length;
-  const totalViews = state.posts.reduce((acc, p) => acc + (Number(p.views) || 0), 0);
-
-  const setTxt = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = Number(val).toLocaleString("ar-YE");
-  };
-
-  setTxt("stat-published-count", publishedCount);
-  setTxt("stat-review-count", reviewCount);
-  setTxt("stat-breaking-count", breakingCount);
-  setTxt("stat-total-views", totalViews);
-}
-
-function renderOpsPostsList() {
-  const listEl = document.getElementById("ops-posts-list");
-  if (!listEl) return;
-
-  updateDashboardStats();
-
-  const searchQ = (document.getElementById("ops-posts-search")?.value || "").trim().toLowerCase();
-  const statusFilter = document.getElementById("ops-filter-status")?.value || "all";
-  const compassFilter = document.getElementById("ops-filter-compass")?.value || "all";
-  const authorFilter = document.getElementById("ops-filter-author")?.value || "all";
-
-  let filtered = [...state.posts];
-
-  if (!isUserEditorOrAdmin() && state.userProfile) {
-    const myEmail = (state.userProfile.email || "").toLowerCase();
-    const myName = state.userProfile.name || "";
-    filtered = filtered.filter(
-      (p) =>
-        (p.authorEmail && p.authorEmail.toLowerCase() === myEmail) ||
-        p.author === myName ||
-        !p.status ||
-        p.status === "published"
-    );
-  }
-
-  if (statusFilter !== "all") {
-    if (statusFilter === "published") {
-      filtered = filtered.filter((p) => !p.status || p.status === "published");
-    } else if (statusFilter === "review") {
-      filtered = filtered.filter((p) => p.status === "review" || p.status === "pending");
-    } else if (statusFilter === "draft") {
-      filtered = filtered.filter((p) => p.status === "draft");
-    } else if (statusFilter === "breaking") {
-      filtered = filtered.filter((p) => isBreakingStillActive(p) || p.isQuickNews);
-    }
-  }
-
-  if (compassFilter !== "all") {
-    filtered = filtered.filter((p) => getPostCompasses(p).includes(compassFilter));
-  }
-
-  if (authorFilter !== "all") {
-    filtered = filtered.filter((p) => p.author === authorFilter);
-  }
-
-  if (searchQ) {
-    filtered = filtered.filter((p) => {
-      const hay = `${p.title || ""} ${p.summary || ""} ${p.author || ""} ${(p.tags || []).join(" ")}`.toLowerCase();
-      return hay.includes(searchQ);
-    });
-  }
-
-  if (!filtered.length) {
-    listEl.innerHTML = `<div class="empty-state">لا توجد منشورات تطابق خيارات الفلترة الحالية.</div>`;
-    return;
-  }
-
-  listEl.innerHTML = filtered
-    .map((post) => {
-      const status = post.status || "published";
-      let statusBadgeHtml = `<span class="status-pill status-published"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">check_circle</span> منشور</span>`;
-      if (status === "review" || status === "pending") {
-        statusBadgeHtml = `<span class="status-pill status-review"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">pending_actions</span> قيد المراجعة</span>`;
-      } else if (status === "draft") {
-        statusBadgeHtml = `<span class="status-pill status-draft"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">draft</span> مسودة</span>`;
-      }
-
-      const breakingBadge = isBreakingStillActive(post)
-        ? `<span class="status-pill status-breaking"><span class="material-symbols-rounded" style="font-size:14px;" translate="no">bolt</span> عاجل نشط</span>`
-        : "";
-
-      const compassesStr = getPostCompasses(post).join(" ، ");
-      const thumb =
-        post.imageUrl ||
-        "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=300&q=60";
-
-      const canManagePost =
-        isUserEditorOrAdmin() ||
-        (state.userProfile &&
-          ((post.authorEmail &&
-            post.authorEmail.toLowerCase() === (state.userProfile.email || "").toLowerCase()) ||
-            post.author === state.userProfile.name));
-
-      const showApproveBtn =
-        isUserEditorOrAdmin() && (status === "review" || status === "pending" || status === "draft");
-
-      return `
-        <article class="ops-post-row">
-          <div class="ops-post-info">
-            <img src="${escapeHtml(thumb)}" alt="" class="ops-post-thumb" loading="lazy">
-            <div>
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
-                ${statusBadgeHtml}
-                ${breakingBadge}
-                <span class="views-secret-badge" title="عدد القراءات (سري للإدارة والكاتب فقط)">
-                  <span class="material-symbols-rounded" style="font-size:14px;" translate="no">visibility</span>
-                  <span>${Number(post.views || 0).toLocaleString("ar-YE")} قراءة</span>
-                </span>
-              </div>
-              <h3 class="ops-post-title">${escapeHtml(post.title)}</h3>
-              <div class="ops-post-meta">
-                <span>الكاتب: <strong>${escapeHtml(post.author || "هيئة التحرير")}</strong></span>
-                <span>|</span>
-                <span>البوصلة: ${escapeHtml(compassesStr)}</span>
-                <span>|</span>
-                <span>${formatArabicDate(post.createdAt)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="ops-post-actions">
-            <button type="button" class="btn-outline sm-btn" data-post-preview="${escapeHtml(post.id)}" title="فتح ومعاينة المنشور في غرفة العمليات">
-              <span class="material-symbols-rounded" translate="no">visibility</span>
-              <span>معاينة</span>
-            </button>
-
-            ${
-              showApproveBtn
-                ? `<button type="button" class="btn-success sm-btn" data-post-approve="${escapeHtml(post.id)}">
-                    <span class="material-symbols-rounded" translate="no">check_circle</span>
-                    <span>اعتماد ونشر</span>
-                  </button>`
-                : ""
-            }
-
-            ${
-              canManagePost
-                ? `<button type="button" class="btn-outline sm-btn" data-post-edit="${escapeHtml(post.id)}">
-                    <span class="material-symbols-rounded" translate="no">edit</span>
-                    <span>تعديل</span>
-                  </button>`
-                : ""
-            }
-
-            <a href="${PUBLIC_SITE_URL}/?post=${encodeURIComponent(post.id)}" target="_blank" rel="noopener noreferrer" class="btn-outline sm-btn" title="فتح الرابط المباشر في الموقع العام">
-              <span class="material-symbols-rounded" translate="no">open_in_new</span>
-            </a>
-
-            ${
-              canManagePost
-                ? `<button type="button" class="btn-outline sm-btn danger-icon-btn" data-post-delete="${escapeHtml(post.id)}" title="حذف المنشور">
-                    <span class="material-symbols-rounded" translate="no">delete</span>
-                  </button>`
-                : ""
-            }
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-
-  listEl.querySelectorAll("[data-post-preview]").forEach((btn) => {
-    btn.addEventListener("click", () => openPostPreviewModal(btn.getAttribute("data-post-preview")));
-  });
-
-  listEl.querySelectorAll("[data-post-approve]").forEach((btn) => {
-    btn.addEventListener("click", () => approveAndPublishPost(btn.getAttribute("data-post-approve")));
-  });
-
-  listEl.querySelectorAll("[data-post-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const post = state.posts.find((p) => p.id === btn.getAttribute("data-post-edit"));
-      if (post) populateEditorForPost(post);
-    });
-  });
-
-  listEl.querySelectorAll("[data-post-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deletePostItem(btn.getAttribute("data-post-delete")));
-  });
-}
-
-async function approveAndPublishPost(postId) {
-  if (!isUserEditorOrAdmin()) {
-    showOpsToast("اعتماد المقالات مخصص للمحررين والقيادة فقط");
-    return;
-  }
-  try {
-    await updateDoc(doc(db, "posts", postId), {
-      status: "published",
-      approvedBy: state.userProfile?.name || state.currentUser?.email || "الإدارة",
-      approvedAt: serverTimestamp()
-    });
-    showOpsToast("تم اعتماد المادة ونشرها في الموقع العام بنجاح");
-    document.getElementById("article-preview-modal")?.classList.add("hidden");
-  } catch (err) {
-    console.error("Approve post error:", err);
-    showOpsToast("تعذر اعتماد المنشور");
-  }
-}
-
-async function deletePostItem(postId) {
-  const post = state.posts.find((p) => p.id === postId);
-  if (!post) return;
-  if (!window.confirm(`هل أنت متأكد من حذف المنشور: "${post.title}" نهائياً؟`)) return;
-  try {
-    await deleteDoc(doc(db, "posts", postId));
-    showOpsToast("تم حذف المنشور بنجاح");
-  } catch (err) {
-    console.error("Delete post error:", err);
-    showOpsToast("حدث خطأ أثناء حذف المنشور");
-  }
-}
-
-// ==================== 12. نافذة فتح ومعاينة المنشور داخل غرفة العمليات ====================
-function openPostPreviewModal(postId) {
-  const post = state.posts.find((p) => p.id === postId);
-  if (!post) return;
-
-  state.previewPostId = postId;
-  const modal = document.getElementById("article-preview-modal");
-  if (!modal) return;
-
-  const compasses = getPostCompasses(post);
-  const status = post.status || "published";
-
-  const badgesEl = document.getElementById("preview-badges");
-  if (badgesEl) {
-    badgesEl.innerHTML = [
-      `<span class="status-pill ${
-        status === "published" ? "status-published" : status === "review" ? "status-review" : "status-draft"
-      }">${status === "published" ? "منشور" : status === "review" ? "قيد المراجعة" : "مسودة"}</span>`,
-      ...compasses.map((c) => `<span class="role-badge">${escapeHtml(c)}</span>`)
-    ].join("");
-  }
-
-  document.getElementById("preview-title").textContent = post.title || "";
-  const sumEl = document.getElementById("preview-summary");
-  if (sumEl) {
-    sumEl.textContent = post.summary || "";
-    sumEl.classList.toggle("hidden", !post.summary);
-  }
-
-  document.getElementById("preview-meta").textContent = `الكاتب: ${
-    post.author || "هيئة التحرير"
-  } | التاريخ: ${formatArabicDate(post.createdAt)} | القراءات: ${post.views || 0}`;
-
-  const mediaEl = document.getElementById("preview-media");
-  if (mediaEl) {
-    mediaEl.innerHTML = post.imageUrl
-      ? `<img src="${escapeHtml(post.imageUrl)}" alt="${escapeHtml(post.title)}">`
-      : "";
-  }
-
-  const contentEl = document.getElementById("preview-content");
-  if (contentEl) {
-    contentEl.innerHTML = post.content || "";
-  }
-
-  const approveBtn = document.getElementById("preview-approve-btn");
-  if (approveBtn) {
-    const canApprove = isUserEditorOrAdmin() && status !== "published";
-    approveBtn.classList.toggle("hidden", !canApprove);
-    approveBtn.onclick = () => approveAndPublishPost(post.id);
-  }
-
-  const editBtn = document.getElementById("preview-edit-btn");
-  if (editBtn) {
-    editBtn.onclick = () => {
-      modal.classList.add("hidden");
-      populateEditorForPost(post);
-    };
-  }
-
-  modal.classList.remove("hidden");
-}
-
-// ==================== 13. محرر المقالات المتقدم، رفع الصور، وتعدد البوصلات ====================
-async function handleEditorImageUpload(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  const statusEl = document.getElementById("image-upload-status");
-  if (statusEl) statusEl.textContent = "جاري رفع الصورة وتجهيز الرابط المباشر...";
-
-  try {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-      method: "POST",
-      body: formData
-    });
-    const data = await res.json();
-
-    if (data && data.success && data.data?.url) {
-      const urlInput = document.getElementById("post-image-url");
-      if (urlInput) urlInput.value = data.data.url;
-      if (statusEl) statusEl.textContent = "تم رفع الصورة وإدراج رابطها بنجاح";
-      showOpsToast("تم رفع الصورة بنجاح");
-    } else {
-      throw new Error("Upload failed");
-    }
-  } catch (err) {
-    console.error("Image upload error:", err);
-    if (statusEl) statusEl.textContent = "تعذر الرفع التلقائي، يمكنك وضع رابط مباشر للصورة";
-    showOpsToast("تعذر رفع الصورة، يرجى المحاولة مرة أخرى أو لصق رابط الصورة");
-  }
-}
-
-function applyToolbarFormatting(formatType) {
-  const textarea = document.getElementById("post-content");
-  if (!textarea) return;
-
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const selected = textarea.value.substring(start, end) || "النص هنا";
-  let replacement = selected;
-
-  if (formatType === "h2") {
-    replacement = `\n<h2>${selected}</h2>\n`;
-  } else if (formatType === "h3") {
-    replacement = `\n<h3>${selected}</h3>\n`;
-  } else if (formatType === "bold") {
-    replacement = `<strong>${selected}</strong>`;
-  } else if (formatType === "quote") {
-    replacement = `\n<blockquote>${selected}</blockquote>\n`;
-  } else if (formatType === "paragraph") {
-    replacement = `\n<p>${selected}</p>\n`;
-  } else if (formatType === "link") {
-    const url = window.prompt("أدخل الرابط الكامل (https://...):", "https://");
-    if (!url) return;
-    replacement = `<a href="${url.trim()}" target="_blank" rel="noopener noreferrer">${selected}</a>`;
-  }
-
-  textarea.setRangeText(replacement, start, end, "end");
-  textarea.focus();
-}
-
-function populateEditorForPost(post) {
-  switchOpsTab("editor");
-  document.getElementById("editor-form-heading").textContent = `تعديل المنشور: ${post.title}`;
-  document.getElementById("edit-post-id").value = post.id;
-  document.getElementById("post-title").value = post.title || "";
-  document.getElementById("post-subcategory").value = post.subcategory || "";
-  document.getElementById("post-summary").value = post.summary || "";
-  document.getElementById("post-image-url").value = post.imageUrl || "";
-  document.getElementById("post-video-url").value = post.videoUrl || "";
-  document.getElementById("post-content").value = post.content || "";
-  document.getElementById("post-tags").value = Array.isArray(post.tags) ? post.tags.join(", ") : "";
-  document.getElementById("post-breaking-hours").value = String(post.breakingDurationHours || 6);
-  document.getElementById("post-is-featured").checked = Boolean(post.isFeatured);
-  document.getElementById("post-is-breaking").checked = Boolean(post.isBreaking);
-  document.getElementById("post-is-quick").checked = Boolean(post.isQuickNews);
-
-  const postCompasses = getPostCompasses(post);
-  document.querySelectorAll('input[name="post-compass-item"]').forEach((chk) => {
-    chk.checked = postCompasses.includes(chk.value);
-  });
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function resetArticleEditor() {
-  document.getElementById("editor-form-heading").textContent = "تحرير ونشر مادة صحفية";
-  document.getElementById("edit-post-id").value = "";
-  document.getElementById("article-editor-form")?.reset();
-  const statusEl = document.getElementById("image-upload-status");
-  if (statusEl) statusEl.textContent = "";
-  populateCompassSelectorsAndFilters();
-}
-
-function formatContentParagraphs(rawContent = "") {
-  const trimmed = rawContent.trim();
-  if (!trimmed) return "";
-  if (/<(p|h2|h3|blockquote|ul|ol|div)\b/i.test(trimmed)) {
-    return trimmed;
-  }
-  return trimmed
-    .split(/\n{2,}/)
-    .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
-    .join("\n");
-}
-
-async function submitArticleForm(saveAsDraft = false) {
-  const editId = (document.getElementById("edit-post-id")?.value || "").trim();
-  const title = (document.getElementById("post-title")?.value || "").trim();
-  const rawContent = (document.getElementById("post-content")?.value || "").trim();
-
-  if (!title || !rawContent) {
-    showOpsToast("يرجى كتابة عنوان المقال والنص الكامل أولاً");
-    return;
-  }
-
-  const selectedCompasses = Array.from(
-    document.querySelectorAll('input[name="post-compass-item"]:checked')
-  ).map((el) => el.value);
-
-  if (!selectedCompasses.length) {
-    showOpsToast("يرجى اختيار بوصلة أو قسم واحد على الأقل للمقال");
-    return;
-  }
-
-  const tagsRaw = (document.getElementById("post-tags")?.value || "").trim();
-  const tags = tagsRaw
-    ? tagsRaw
-        .split(/[,،]/)
-        .map((t) => t.replace(/^#/, "").trim())
-        .filter(Boolean)
-    : [];
-
-  const isBreaking = Boolean(document.getElementById("post-is-breaking")?.checked);
-  const breakingHours = Number(document.getElementById("post-breaking-hours")?.value || 6);
-  const breakingExpiresAt = isBreaking ? Date.now() + breakingHours * 3600 * 1000 : null;
-
-  let postStatus = "review";
-  if (saveAsDraft) {
-    postStatus = "draft";
-  } else if (canUserPublishDirectly()) {
-    postStatus = "published";
-  } else {
-    postStatus = "review";
-  }
-
-  const authorProfile = state.userProfile || {};
-  const payload = {
-    title,
-    summary: (document.getElementById("post-summary")?.value || "").trim(),
-    content: formatContentParagraphs(rawContent),
-    category: selectedCompasses[0],
-    categories: selectedCompasses,
-    subcategory: (document.getElementById("post-subcategory")?.value || "").trim(),
-    imageUrl: (document.getElementById("post-image-url")?.value || "").trim(),
-    videoUrl: (document.getElementById("post-video-url")?.value || "").trim(),
-    tags,
-    isFeatured: Boolean(document.getElementById("post-is-featured")?.checked),
-    isBreaking,
-    breakingDurationHours: breakingHours,
-    breakingExpiresAt,
-    isQuickNews: Boolean(document.getElementById("post-is-quick")?.checked),
-    status: postStatus,
-    updatedAt: serverTimestamp()
-  };
-
-  try {
-    if (editId) {
-      await setDoc(doc(db, "posts", editId), payload, { merge: true });
-    } else {
-      await addDoc(collection(db, "posts"), {
-        ...payload,
-        author: authorProfile.name || state.currentUser?.displayName || "هيئة التحرير",
-        authorEmail: (authorProfile.email || state.currentUser?.email || "").toLowerCase(),
-        authorAvatar: authorProfile.avatar || state.currentUser?.photoURL || "",
-        authorVerified: Boolean(authorProfile.verified || isUserAdmin()),
-        views: 0,
-        createdAt: serverTimestamp()
-      });
-    }
-
-    if (saveAsDraft) {
-      showOpsToast("تم حفظ المادة في المسودات بنجاح");
-    } else if (postStatus === "published") {
-      showOpsToast("تم نشر المادة الصحفية مباشرة في الموقع العام");
-    } else {
-      showOpsToast("تم إرسال مادتك إلى هيئة التحرير للمراجعة والاعتماد");
-    }
-
-    resetArticleEditor();
-    switchOpsTab("dashboard");
-  } catch (err) {
-    console.error("Save article error:", err);
-    showOpsToast("حدث خطأ أثناء حفظ المقال، تحقق من اتصالك");
-  }
-}
-
-// ==================== 14. تقنية النشر السريع للأخبار العاجلة الموقوتة ====================
-async function submitQuickBreakingForm(e) {
-  e.preventDefault();
-  const title = (document.getElementById("quick-news-title")?.value || "").trim();
-  const compass = document.getElementById("quick-news-compass")?.value || "بوصلة السياسة اليمنية";
-  const durationHours = Number(document.getElementById("quick-news-duration")?.value || 6);
-  const bodyText = (document.getElementById("quick-news-body")?.value || "").trim();
-
-  if (!title) return;
-
-  const postStatus = canUserPublishDirectly() ? "published" : "review";
-  const authorProfile = state.userProfile || {};
-
-  const payload = {
-    title,
-    summary: bodyText || title,
-    content: formatContentParagraphs(bodyText || title),
-    category: compass,
-    categories: [compass],
-    isBreaking: true,
-    isQuickNews: true,
-    breakingDurationHours: durationHours,
-    breakingExpiresAt: Date.now() + durationHours * 3600 * 1000,
-    tags: ["عاجل", "أخبار_سريعة", "شبكة_البوصلة"],
-    status: postStatus,
-    author: authorProfile.name || "غرفة الأخبار العاجلة",
-    authorEmail: (authorProfile.email || state.currentUser?.email || "").toLowerCase(),
-    authorAvatar: authorProfile.avatar || "",
-    authorVerified: Boolean(authorProfile.verified || isUserAdmin()),
-    views: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  };
-
-  try {
-    await addDoc(collection(db, "posts"), payload);
-    document.getElementById("quick-breaking-form")?.reset();
-    document.getElementById("quick-breaking-modal")?.classList.add("hidden");
-
-    showOpsToast(
-      postStatus === "published"
-        ? `تم بث الخبر العاجل لمدة (${durationHours}) ساعات في الموقع العام`
-        : "تم إرسال الخبر السريع للمراجعة الفورية"
-    );
-  } catch (err) {
-    console.error("Quick breaking error:", err);
-    showOpsToast("تعذر بث الخبر العاجل");
-  }
-}
-
-// ==================== 15. التنقل بين التبويبات والزر المركزي السحري (+) ====================
-function switchOpsTab(tabName) {
-  state.activeTab = tabName;
-
-  const sections = {
-    dashboard: document.getElementById("tab-dashboard"),
-    editor: document.getElementById("tab-editor"),
-    compasses: document.getElementById("tab-compasses"),
-    staff: document.getElementById("tab-staff"),
-    ads: document.getElementById("tab-ads"),
-    charter: document.getElementById("tab-charter"),
-    settings: document.getElementById("tab-settings")
-  };
-
-  Object.entries(sections).forEach(([key, el]) => {
-    if (el) el.classList.toggle("hidden", key !== tabName);
-  });
-
-  document.querySelectorAll("[data-ops-tab]").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-ops-tab") === tabName);
-  });
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-// ==================== 16. ربط الأحداث والمزامنة اللحظية مع Firestore ====================
-function bindOpsEvents() {
-  document.getElementById("google-login-btn")?.addEventListener("click", triggerGoogleLogin);
-
-  document.getElementById("logout-btn")?.addEventListener("click", async () => {
-    await signOut(auth);
-  });
-
-  document.getElementById("dismiss-staff-alert-btn")?.addEventListener("click", async () => {
-    document.getElementById("staff-alert-bar")?.classList.add("hidden");
-    if (state.userProfile?.id) {
-      await updateDoc(doc(db, "staff", state.userProfile.id), { adminAlert: "" }).catch(() => {});
-    }
-  });
-
-  document.querySelectorAll("[data-ops-tab]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const targetTab = btn.getAttribute("data-ops-tab");
-      if (targetTab) switchOpsTab(targetTab);
-    });
-  });
-
-  const magicModal = document.getElementById("magic-publish-modal");
-  document.getElementById("magic-create-btn")?.addEventListener("click", () => {
-    magicModal?.classList.remove("hidden");
-  });
-
-  document.getElementById("magic-opt-article")?.addEventListener("click", () => {
-    magicModal?.classList.add("hidden");
-    resetArticleEditor();
-    switchOpsTab("editor");
-  });
-
-  document.getElementById("magic-opt-breaking")?.addEventListener("click", () => {
-    magicModal?.classList.add("hidden");
-    document.getElementById("quick-breaking-modal")?.classList.remove("hidden");
-  });
-
-  document.getElementById("magic-opt-ad")?.addEventListener("click", () => {
-    magicModal?.classList.add("hidden");
-    if (!isUserEditorOrAdmin()) {
-      showOpsToast("إدارة الإعلانات مخصصة لهيئة التحرير والقيادة");
-      return;
-    }
-    switchOpsTab("ads");
-  });
-
-  document.getElementById("magic-opt-compass")?.addEventListener("click", () => {
-    magicModal?.classList.add("hidden");
-    if (!isUserEditorOrAdmin()) {
-      showOpsToast("إدارة البوصلات مخصصة لهيئة التحرير والقيادة");
-      return;
-    }
-    switchOpsTab("compasses");
-  });
-
-  document.getElementById("new-article-trigger-btn")?.addEventListener("click", () => {
-    resetArticleEditor();
-    switchOpsTab("editor");
-  });
-
-  document.getElementById("quick-breaking-trigger-btn")?.addEventListener("click", () => {
-    document.getElementById("quick-breaking-modal")?.classList.remove("hidden");
-  });
-
-  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const modalId = btn.getAttribute("data-close-modal");
-      if (modalId) document.getElementById(modalId)?.classList.add("hidden");
-    });
-  });
-
-  ["ops-posts-search", "ops-filter-status", "ops-filter-compass", "ops-filter-author"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("input", renderOpsPostsList);
-    el.addEventListener("change", renderOpsPostsList);
-  });
-
-  document.getElementById("post-image-file")?.addEventListener("change", handleEditorImageUpload);
-
-  document.querySelectorAll(".tool-btn").forEach((btn) => {
-    btn.addEventListener("click", () => applyToolbarFormatting(btn.getAttribute("data-format")));
-  });
-
-  document.getElementById("article-editor-form")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    submitArticleForm(false);
-  });
-
-  document.getElementById("save-draft-btn")?.addEventListener("click", () => {
-    submitArticleForm(true);
-  });
-
-  document.getElementById("reset-editor-btn")?.addEventListener("click", resetArticleEditor);
-
-  document.getElementById("quick-breaking-form")?.addEventListener("submit", submitQuickBreakingForm);
-
-  document.getElementById("compass-form")?.addEventListener("submit", saveCompassItem);
-  document.getElementById("reset-compass-form-btn")?.addEventListener("click", resetCompassForm);
-  document.getElementById("seed-default-compasses-btn")?.addEventListener("click", seedDefaultCompassesToDb);
-
-  document.getElementById("staff-form")?.addEventListener("submit", saveStaffMember);
-  document.getElementById("reset-staff-form-btn")?.addEventListener("click", resetStaffForm);
-  document.getElementById("ops-staff-search")?.addEventListener("input", (e) => {
-    renderStaffList(e.target.value);
-  });
-
-  document.getElementById("ad-form")?.addEventListener("submit", saveAdItem);
-  document.getElementById("reset-ad-form-btn")?.addEventListener("click", resetAdForm);
-
-  document.getElementById("sovereign-settings-form")?.addEventListener("submit", saveSovereignSettings);
-}
-
-function startOpsRealtimeListeners() {
-  onSnapshot(doc(db, "settings", "general"), (snap) => {
-    if (snap.exists()) {
-      state.settings = { ...state.settings, ...snap.data() };
-    }
-    populateSettingsForm();
-  });
-
-  onSnapshot(collection(db, "categories"), (snap) => {
-    if (!snap.empty) {
-      const dbCats = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const merged = [...DEFAULT_COMPASSES];
-      dbCats.forEach((cat) => {
-        const idx = merged.findIndex((m) => m.id === cat.id || m.name === cat.name);
-        if (idx >= 0) merged[idx] = { ...merged[idx], ...cat };
-        else merged.push(cat);
-      });
-      state.compasses = merged;
-    }
-    populateCompassSelectorsAndFilters();
-    renderCompassesManagerList();
-  });
-
-  onSnapshot(collection(db, "staff"), (snap) => {
-    state.staff = snap.docs.map((d) => ({ id: d.id, email: d.id, ...d.data() }));
-    renderStaffList(document.getElementById("ops-staff-search")?.value || "");
-    populateAuthorFilterDropdown();
-
-    if (state.currentUser?.email) {
-      const myEmail = state.currentUser.email.toLowerCase();
-      const updatedMe = state.staff.find((s) => s.id === myEmail);
-      if (updatedMe) {
-        if (isSuperAdminEmail(myEmail)) {
-          updatedMe.role = "admin";
-          updatedMe.verified = true;
-          updatedMe.requireReview = false;
-          updatedMe.suspended = false;
-        }
-        state.userProfile = updatedMe;
-        applyUserInterfacePermissions();
-      }
-    }
-  });
-
-  onSnapshot(collection(db, "posts"), (snap) => {
-    state.posts = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => getPostTimestampMs(b) - getPostTimestampMs(a));
-
-    populateAuthorFilterDropdown();
-    renderOpsPostsList();
-  });
-
-  onSnapshot(collection(db, "ads"), (snap) => {
-    state.ads = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderAdsManagerList();
-  });
-}
-
-// ==================== 17. نقطة انطلاق غرفة العمليات ====================
-document.addEventListener("DOMContentLoaded", () => {
-  populateCompassSelectorsAndFilters();
-  populateSettingsForm();
-  bindOpsEvents();
-
-  checkPendingRedirectLogin();
-
-  onAuthStateChanged(auth, (user) => {
-    handleAuthUser(user);
-  });
-});
+// ------------------- نهاية الجزء الأول (الأكبر) من غرفة العمليات -------------------
