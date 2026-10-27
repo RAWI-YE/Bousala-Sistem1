@@ -18,7 +18,7 @@
 <body>
 
   <!-- =====================================================================
-       1. شاشة تسجيل الدخول الآمنة (Authentication Gate)
+       1. بوابة المصادقة المحصنة (Closed Authentication Gate)
        ===================================================================== -->
   <section id="auth-screen" class="auth-screen">
     <div class="auth-card">
@@ -29,9 +29,11 @@
       <h1 class="auth-title">غرفة العمليات المركزية</h1>
       <p class="auth-subtitle">منظومة الإدارة والتحرير الصحفي — شبكة البوصلة الإخبارية</p>
 
-      <div id="auth-error-box" class="alert-banner alert-danger hidden">
-        <span class="material-symbols-rounded" translate="no">error</span>
-        <span id="auth-error-text"></span>
+      <div id="auth-error-box" class="alert-banner alert-danger hidden" style="margin-bottom: 16px; text-align: right;">
+        <div class="alert-content">
+          <span class="material-symbols-rounded" translate="no">gpp_bad</span>
+          <span id="auth-error-text"></span>
+        </div>
       </div>
 
       <button type="button" id="google-login-btn" class="btn-primary btn-lg auth-google-btn">
@@ -40,8 +42,8 @@
       </button>
 
       <div class="auth-footer-note">
-        <span class="material-symbols-rounded" translate="no">verified_user</span>
-        <span>الدخول مقتصر على الكادر الصحفي والمحررين المعتمدين في الشبكة</span>
+        <span class="material-symbols-rounded" translate="no">lock</span>
+        <span>منطقة محمية: الدخول مقتصر حصرياً على الصحفيين المسجلين مسبقاً لدى القيادة</span>
       </div>
     </div>
   </section>
@@ -62,7 +64,7 @@
             <div>
               <div class="ops-brand-title-row">
                 <strong id="ops-header-title">غرفة عمليات البوصلة</strong>
-                <span id="current-user-role-badge" class="role-badge">محرر</span>
+                <span id="current-user-role-badge" class="role-badge">صحفي</span>
               </div>
               <span class="ops-brand-sub">مؤسسة RAWI-YE.COM الإعلامية</span>
             </div>
@@ -73,19 +75,28 @@
         <nav class="ops-desktop-nav" aria-label="أقسام غرفة العمليات">
           <button type="button" class="ops-nav-btn active" data-ops-tab="dashboard">
             <span class="material-symbols-rounded" translate="no">space_dashboard</span>
-            <span>لوحة المتابعة والمقالات</span>
+            <span id="nav-label-dashboard">لوحة المتابعة</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="editor">
             <span class="material-symbols-rounded" translate="no">edit_document</span>
             <span>محرر المقالات</span>
           </button>
+          <button type="button" class="ops-nav-btn" data-ops-tab="notebook">
+            <span class="material-symbols-rounded" translate="no">menu_book</span>
+            <span>دفتر الملاحظات</span>
+          </button>
+          <button type="button" class="ops-nav-btn" data-ops-tab="profile">
+            <span class="material-symbols-rounded" translate="no">manage_accounts</span>
+            <span>ملفي والتوثيق</span>
+          </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="compasses" id="nav-tab-compasses">
             <span class="material-symbols-rounded" translate="no">category</span>
-            <span>البوصلات والأقسام</span>
+            <span>البوصلات</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="staff" id="nav-tab-staff">
             <span class="material-symbols-rounded" translate="no">badge</span>
             <span>الكادر الصحفي</span>
+            <span id="staff-requests-badge" class="notif-dot hidden">0</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="ads" id="nav-tab-ads">
             <span class="material-symbols-rounded" translate="no">campaign</span>
@@ -93,7 +104,7 @@
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="charter">
             <span class="material-symbols-rounded" translate="no">policy</span>
-            <span>الميثاق والسلامة</span>
+            <span>الميثاق</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="settings" id="nav-tab-settings">
             <span class="material-symbols-rounded" translate="no">tune</span>
@@ -107,11 +118,11 @@
             <span class="hide-sm">الموقع العام</span>
           </a>
 
-          <div class="user-pill">
+          <button type="button" class="user-pill" data-ops-tab="profile" title="فتح ملفي الشخصي">
             <img id="current-user-avatar" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="user-pill-avatar">
             <span id="current-user-name" class="hide-sm"></span>
             <span id="current-user-verified" class="material-symbols-rounded verified-icon hidden" translate="no" title="موثق بالشارة الزرقاء">verified</span>
-          </div>
+          </button>
 
           <button type="button" id="logout-btn" class="icon-btn danger-icon-btn" title="تسجيل الخروج">
             <span class="material-symbols-rounded" translate="no">logout</span>
@@ -120,7 +131,7 @@
       </div>
     </header>
 
-    <!-- شريط التنبيه الإداري للكاتب (يظهر في حال إرسال الإدارة تنبيهاً للصحفي) -->
+    <!-- شريط التنبيه الإداري للكاتب -->
     <div id="staff-alert-bar" class="ops-container hidden" style="margin-top: 14px;">
       <div class="alert-banner alert-warning">
         <div class="alert-content">
@@ -138,17 +149,16 @@
     <main class="ops-container ops-main">
 
       <!-- =================================================================
-           التبويب (1): لوحة المتابعة وإدارة المنشورات والمراجعة (Dashboard)
+           التبويب (1): لوحة المتابعة وإدارة المنشورات (معزولة حسب الصلاحية)
            ================================================================= -->
       <section id="tab-dashboard" class="ops-tab-section">
-        <!-- البطاقات الإحصائية السريعة (تتضمن المشاهدات السرية) -->
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon blue-stat">
               <span class="material-symbols-rounded" translate="no">article</span>
             </div>
             <div>
-              <span class="stat-label">المواد المنشورة</span>
+              <span id="stat-label-published" class="stat-label">المواد المنشورة</span>
               <strong id="stat-published-count" class="stat-value">0</strong>
             </div>
           </div>
@@ -158,17 +168,17 @@
               <span class="material-symbols-rounded" translate="no">pending_actions</span>
             </div>
             <div>
-              <span class="stat-label">بانتظار المراجعة والاعتماد</span>
+              <span id="stat-label-review" class="stat-label">قيد المراجعة والاعتماد</span>
               <strong id="stat-review-count" class="stat-value">0</strong>
             </div>
           </div>
 
           <div class="stat-card">
             <div class="stat-icon red-stat">
-              <span class="material-symbols-rounded" translate="no">bolt</span>
+              <span class="material-symbols-rounded" translate="no">edit_note</span>
             </div>
             <div>
-              <span class="stat-label">عواجل وأخبار سريعة نشطة</span>
+              <span id="stat-label-draftOrBreaking" class="stat-label">مسودات وملاحظات</span>
               <strong id="stat-breaking-count" class="stat-value">0</strong>
             </div>
           </div>
@@ -178,23 +188,22 @@
               <span class="material-symbols-rounded" translate="no">visibility</span>
             </div>
             <div>
-              <span class="stat-label">إجمالي قراءات الشبكة</span>
+              <span id="stat-label-views" class="stat-label">إجمالي القراءات الفعلية</span>
               <strong id="stat-total-views" class="stat-value">0</strong>
             </div>
           </div>
         </div>
 
-        <!-- شريط الإجراءات السريعة والفلترة السلسة -->
         <div class="panel-card">
           <div class="panel-header">
             <div class="panel-title-wrap">
               <span class="material-symbols-rounded" translate="no">manage_search</span>
-              <h2>إدارة المنشورات، المراجعة، والأخبار السريعة</h2>
+              <h2 id="dashboard-panel-heading">إدارة المنشورات والمراجعة</h2>
             </div>
             <div class="panel-actions">
               <button type="button" id="quick-breaking-trigger-btn" class="btn-danger sm-btn">
                 <span class="material-symbols-rounded" translate="no">bolt</span>
-                <span>خبر عاجل / سريع موقوت</span>
+                <span>خبر عاجل / سريع</span>
               </button>
               <button type="button" id="new-article-trigger-btn" class="btn-primary sm-btn">
                 <span class="material-symbols-rounded" translate="no">add</span>
@@ -203,17 +212,18 @@
             </div>
           </div>
 
-          <!-- فلاتر البحث المتقدمة في غرفة العمليات -->
+          <!-- فلاتر البحث -->
           <div class="filters-bar">
             <div class="filter-search-box">
               <span class="material-symbols-rounded" translate="no">search</span>
-              <input type="search" id="ops-posts-search" class="form-input" placeholder="ابحث بالعنوان، اسم الكاتب، أو الوسم...">
+              <input type="search" id="ops-posts-search" class="form-input" placeholder="ابحث بالعنوان أو الوسم...">
             </div>
 
             <select id="ops-filter-status" class="form-select">
               <option value="all">جميع الحالات</option>
               <option value="published">منشور في الموقع العام</option>
               <option value="review">قيد المراجعة (بانتظار الاعتماد)</option>
+              <option value="rejected">مُعاد للتعديل (مرفوض بملاحظة)</option>
               <option value="draft">مسودة محفوظة</option>
               <option value="breaking">الأخبار العاجلة والسريعة</option>
             </select>
@@ -227,15 +237,15 @@
             </select>
           </div>
 
-          <!-- قائمة وجدول المنشورات -->
+          <!-- قائمة المنشورات -->
           <div id="ops-posts-list" class="ops-posts-list">
-            <div class="empty-state">جاري جلب المنشورات من قاعدة البيانات...</div>
+            <div class="empty-state">جاري جلب المنشورات...</div>
           </div>
         </div>
       </section>
 
       <!-- =================================================================
-           التبويب (2): محرر المقالات المتقدم ومتعدد البوصلات (Article Editor)
+           التبويب (2): محرر المقالات المتقدم (Article Editor)
            ================================================================= -->
       <section id="tab-editor" class="ops-tab-section hidden">
         <div class="panel-card">
@@ -250,10 +260,22 @@
             </button>
           </div>
 
-          <!-- تنبيه حالة صلاحية النشر للكاتب الحالي -->
           <div id="writer-publishing-notice" class="alert-banner alert-info" style="margin-bottom: 16px;">
-            <span class="material-symbols-rounded" translate="no">info</span>
-            <span id="writer-publishing-notice-text"></span>
+            <div class="alert-content">
+              <span class="material-symbols-rounded" translate="no">info</span>
+              <span id="writer-publishing-notice-text"></span>
+            </div>
+          </div>
+
+          <!-- صندوق ملاحظة المراجع في حال كان المقال مُعاداً للتعديل -->
+          <div id="editor-rejection-alert" class="alert-banner alert-danger hidden" style="margin-bottom: 16px;">
+            <div class="alert-content">
+              <span class="material-symbols-rounded" translate="no">rate_review</span>
+              <div>
+                <strong>ملاحظة هيئة التحرير لتعديل هذا المقال:</strong>
+                <p id="editor-rejection-reason"></p>
+              </div>
+            </div>
           </div>
 
           <form id="article-editor-form" class="ops-form">
@@ -272,23 +294,21 @@
               </div>
             </div>
 
-            <!-- اختيار أكثر من بوصلة / قسم للمقال الواحد -->
             <div class="form-group">
               <label>اختر البوصلة أو البوصلات المرتبطة بالمقال (يمكنك اختيار أكثر من قسم) *</label>
               <div id="multi-compass-selector" class="multi-compass-grid"></div>
             </div>
 
             <div class="form-group">
-              <label for="post-summary">الملخص الصحفي البارز (يظهر في البطاقات وعند المشاركة في واتساب)</label>
+              <label for="post-summary">الملخص الصحفي البارز (يظهر في البطاقات وعند المشاركة)</label>
               <textarea id="post-summary" class="form-textarea" rows="2" placeholder="ملخص مكثف من سطرين يوضح جوهر التقرير..."></textarea>
             </div>
 
-            <!-- الصورة البارزة والفيديو -->
             <div class="form-grid-2">
               <div class="form-group">
                 <label for="post-image-url">رابط الصورة البارزة للمقال (أو ارفع صورة من جهازك)</label>
                 <div class="input-with-action">
-                  <input type="url" id="post-image-url" class="form-input" placeholder="https://...">
+                  <input type="url" id="post-image-url" class="form-input" placeholder="https://..." dir="ltr">
                   <label for="post-image-file" class="btn-outline sm-btn upload-label-btn">
                     <span class="material-symbols-rounded" translate="no">upload_file</span>
                     <span>رفع صورة</span>
@@ -300,11 +320,10 @@
 
               <div class="form-group">
                 <label for="post-video-url">رابط فيديو يوتيوب مضمن (اختياري)</label>
-                <input type="url" id="post-video-url" class="form-input" placeholder="https://www.youtube.com/watch?v=...">
+                <input type="url" id="post-video-url" class="form-input" placeholder="https://www.youtube.com/watch?v=..." dir="ltr">
               </div>
             </div>
 
-            <!-- شريط أدوات تنسيق النص الصحفي -->
             <div class="form-group">
               <label for="post-content">النص الكامل للمقال (يدعم الروابط والهاشتاجات التلقائية) *</label>
               <div class="editor-toolbar">
@@ -320,17 +339,16 @@
                 <button type="button" class="tool-btn" data-format="quote" title="اقتباس صحفي">
                   <span class="material-symbols-rounded" translate="no">format_quote</span>
                 </button>
-                <button type="button" class="tool-btn" data-format="link" title="إدراج رابط قابل للنقر">
+                <button type="button" class="tool-btn" data-format="link" title="إدراج رابط">
                   <span class="material-symbols-rounded" translate="no">link</span>
                 </button>
                 <button type="button" class="tool-btn" data-format="paragraph" title="فقرة جديدة">
                   <span class="material-symbols-rounded" translate="no">segment</span>
                 </button>
               </div>
-              <textarea id="post-content" class="form-textarea article-body-editor" rows="12" required placeholder="اكتب تفاصيل التقرير أو المقال هنا... أي رابط http أو وسم #هاشتاج سيتحول تلقائياً إلى عنصر تفاعلي قابل للنقر في الموقع العام."></textarea>
+              <textarea id="post-content" class="form-textarea article-body-editor" rows="12" required placeholder="اكتب تفاصيل التقرير أو المقال هنا..."></textarea>
             </div>
 
-            <!-- الوسوم وخيارات التمييز والعاجل -->
             <div class="form-grid-2">
               <div class="form-group">
                 <label for="post-tags">الوسوم والهاشتاجات (افصل بينها بفاصلة)</label>
@@ -369,7 +387,6 @@
               </label>
             </div>
 
-            <!-- أزرار الحفظ والنشر -->
             <div class="form-actions-bar">
               <button type="submit" id="publish-post-btn" class="btn-primary btn-lg">
                 <span class="material-symbols-rounded" translate="no">send</span>
@@ -386,11 +403,236 @@
       </section>
 
       <!-- =================================================================
-           التبويب (3): إدارة البوصلات والأقسام التخصصية (Compasses Manager)
+           التبويب (3): دفتر الملاحظات الشخصي للصحفي (Journalist Notebook)
+           ================================================================= -->
+      <section id="tab-notebook" class="ops-tab-section hidden">
+        <div class="ops-grid-sidebar">
+          <!-- نموذج كتابة وتعديل ملاحظة شخصية -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <span class="material-symbols-rounded" translate="no">edit_note</span>
+                <h2 id="note-form-title">تدوين ملاحظة أو فكرة جديدة</h2>
+              </div>
+              <button type="button" id="reset-note-form-btn" class="btn-outline sm-btn">جديد</button>
+            </div>
+
+            <form id="notebook-form" class="ops-form">
+              <input type="hidden" id="note-edit-id" value="">
+
+              <div class="form-group">
+                <label for="note-title">عنوان الملاحظة أو الفكرة *</label>
+                <input type="text" id="note-title" class="form-input" required placeholder="مثال: نقاط ومصادر حول الملف الاقتصادي...">
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="note-category">تصنيف الملاحظة</label>
+                  <select id="note-category" class="form-select">
+                    <option value="فكرة مقال">فكرة مقال</option>
+                    <option value="مصادر ومعلومات">مصادر ومعلومات</option>
+                    <option value="مسودة سريعة">مسودة سريعة</option>
+                    <option value="مهام ومتابعة">مهام ومتابعة</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="note-color">لون البطاقة</label>
+                  <select id="note-color" class="form-select">
+                    <option value="default">أبيض كلاسيكي</option>
+                    <option value="amber">أصفر تذكيري</option>
+                    <option value="blue">أزرق تحليلي</option>
+                    <option value="green">أخضر مكتمل</option>
+                    <option value="red">أحمر هام وعاجل</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="note-content">تفاصيل الملاحظة أو النص المحفوظ *</label>
+                <textarea id="note-content" class="form-textarea" rows="7" required placeholder="دوّن أفكارك، أرقام التواصل، الاقتباسات، أو مسوداتك الخاصة هنا... (ملاحظاتك مشفرة وخاصة بك وحدك)"></textarea>
+              </div>
+
+              <label class="check-pill">
+                <input type="checkbox" id="note-pinned">
+                <span class="material-symbols-rounded" translate="no">push_pin</span>
+                <span>تثبيت هذه الملاحظة في أعلى الدفتر</span>
+              </label>
+
+              <button type="submit" class="btn-primary" style="width:100%;">
+                <span class="material-symbols-rounded" translate="no">save</span>
+                <span>حفظ في دفتري الخاص</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- مساحة عرض وبحث الملاحظات الشخصية -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <span class="material-symbols-rounded" translate="no">menu_book</span>
+                <h2>دفتر ملاحظاتي ومسودات الأفكار</h2>
+              </div>
+              <div class="filter-search-box" style="min-width: 240px;">
+                <span class="material-symbols-rounded" translate="no">search</span>
+                <input type="search" id="notebook-search" class="form-input" placeholder="ابحث في ملاحظاتك...">
+              </div>
+            </div>
+
+            <div id="notebook-notes-grid" class="notebook-grid">
+              <div class="empty-state">لا توجد ملاحظات مدونة في دفترك حتى الآن.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           التبويب (4): ملفي الشخصي وطلب التوثيق بالشارة الزرقاء (My Profile & KYC)
+           ================================================================= -->
+      <section id="tab-profile" class="ops-tab-section hidden">
+        <div class="ops-grid-sidebar">
+          <!-- بطاقة الهوية الحالية وطلب التوثيق KYC -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <span class="material-symbols-rounded" translate="no">badge</span>
+                <h2>بطاقتي الصحفية وحالة التوثيق</h2>
+              </div>
+            </div>
+
+            <div class="my-profile-summary">
+              <img id="my-profile-card-avatar" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="my-profile-lg-avatar">
+              <div class="my-profile-name-row">
+                <h3 id="my-profile-card-name"></h3>
+                <span id="my-profile-card-verified" class="material-symbols-rounded verified-icon hidden" translate="no" title="صحفي موثق بالشارة الزرقاء">verified</span>
+              </div>
+              <p id="my-profile-card-role" class="my-profile-job"></p>
+              <div id="my-profile-pending-name-box" class="alert-banner alert-warning hidden" style="margin-top:10px;font-size:0.78rem;">
+                <span class="material-symbols-rounded" translate="no">schedule</span>
+                <span id="my-profile-pending-name-text"></span>
+              </div>
+            </div>
+
+            <hr class="form-divider" style="margin: 18px 0;">
+
+            <!-- قسم طلب التوثيق بالشارة الزرقاء (KYC) -->
+            <div id="kyc-verification-section">
+              <h3 class="settings-sub-heading" style="margin-bottom: 8px;">
+                <span class="material-symbols-rounded" style="vertical-align:middle;" translate="no">verified</span>
+                <span>التوثيق بالشارة الزرقاء (KYC)</span>
+              </h3>
+              <p id="kyc-status-desc" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">
+                تمنح الشارة الزرقاء للصحفيين المعتمدين صلاحية النشر المباشر وتظهر بجانب اسمك وصورتك في جميع مقالاتك بالموقع العام.
+              </p>
+
+              <form id="kyc-request-form" class="ops-form">
+                <div class="form-group">
+                  <label for="kyc-doc-url">رابط صورة البطاقة الصحفية أو إثبات الهوية (أو ارفعها من جهازك)</label>
+                  <div class="input-with-action">
+                    <input type="url" id="kyc-doc-url" class="form-input" placeholder="https://..." dir="ltr">
+                    <label for="kyc-doc-file" class="btn-outline sm-btn upload-label-btn">
+                      <span class="material-symbols-rounded" translate="no">upload_file</span>
+                      <span>رفع الوثيقة</span>
+                    </label>
+                    <input type="file" id="kyc-doc-file" accept="image/*" class="hidden">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="kyc-note">ملاحظة أو نبذة عن خبراتك الصحفية للقيادة</label>
+                  <textarea id="kyc-note" class="form-textarea" rows="2" placeholder="اكتب توضيحاً مختصراً لطلب التوثيق..."></textarea>
+                </div>
+
+                <button type="submit" id="kyc-submit-btn" class="btn-primary" style="width:100%;">
+                  <span class="material-symbols-rounded" translate="no">send</span>
+                  <span>إرسال طلب التوثيق للقيادة العليا</span>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- نموذج التعديل الحر للبيانات الشخصية للصحفي -->
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <span class="material-symbols-rounded" translate="no">manage_accounts</span>
+                <h2>تعديل بياناتي الشخصية، صورتي، وبريدي المعتمد</h2>
+              </div>
+            </div>
+
+            <form id="my-profile-form" class="ops-form">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="my-prof-name">الاسم الصحفي الظاهر للقراء *</label>
+                  <input type="text" id="my-prof-name" class="form-input" required>
+                  <span class="field-hint">ملاحظة: أي تغيير في الاسم الأساسي يُحال لموافقة القيادة العليا أولاً لمنع انتحال الهوية.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="my-prof-job">المسمى المهني / التخصص الصحفي</label>
+                  <input type="text" id="my-prof-job" class="form-input" placeholder="مثال: كاتب ومحلل سياسي">
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="my-prof-email">البريد الإلكتروني المعتمد للدخول (Google Email) *</label>
+                  <input type="email" id="my-prof-email" class="form-input" required dir="ltr">
+                  <span class="field-hint">إذا قمت بتغيير بريدك، سيُنقل ملفك وصلاحياتك ومقالاتك تلقائياً إلى بريدك الجديد.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="my-prof-phone">رقم الهاتف والواتساب (مع مفتاح الدولة)</label>
+                  <input type="tel" id="my-prof-phone" class="form-input" placeholder="967770000000" dir="ltr">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="my-prof-avatar">الصورة الشخصية للكاتب (تظهر في شريط أقلام الصحيفة وبجانب مقالاتك)</label>
+                <div class="input-with-action">
+                  <input type="url" id="my-prof-avatar" class="form-input" placeholder="https://..." dir="ltr">
+                  <label for="my-prof-avatar-file" class="btn-outline sm-btn upload-label-btn">
+                    <span class="material-symbols-rounded" translate="no">photo_camera</span>
+                    <span>رفع صورتي</span>
+                  </label>
+                  <input type="file" id="my-prof-avatar-file" accept="image/*" class="hidden">
+                </div>
+                <span id="my-avatar-upload-status" class="field-hint"></span>
+              </div>
+
+              <div class="form-group">
+                <label for="my-prof-bio">النبذة التعريفية للكاتب (تظهر في صفحتك بالموقع العام)</label>
+                <textarea id="my-prof-bio" class="form-textarea" rows="3" placeholder="اكتب نبذة مهنية موجزة عنك..."></textarea>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="my-prof-x">رابط حساب منصة X (اختياري)</label>
+                  <input type="url" id="my-prof-x" class="form-input" placeholder="https://x.com/..." dir="ltr">
+                </div>
+
+                <div class="form-group">
+                  <label for="my-prof-fb">رابط حساب فيسبوك (اختياري)</label>
+                  <input type="url" id="my-prof-fb" class="form-input" placeholder="https://facebook.com/..." dir="ltr">
+                </div>
+              </div>
+
+              <div class="form-actions-bar">
+                <button type="submit" class="btn-primary btn-lg">
+                  <span class="material-symbols-rounded" translate="no">save</span>
+                  <span>حفظ وتحديث بياناتي الشخصية</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           التبويب (5): إدارة البوصلات والأقسام التخصصية (Compasses Manager)
            ================================================================= -->
       <section id="tab-compasses" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
-          <!-- نموذج إضافة أو تعديل بوصلة -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -421,7 +663,7 @@
                     <option value="monitoring">اقتصاد وتنمية (monitoring)</option>
                     <option value="theater_comedy">فن وإعلام (theater_comedy)</option>
                     <option value="sports_soccer">رياضة (sports_soccer)</option>
-                    <option value="Location_city">محليات ومدن (location_city)</option>
+                    <option value="location_city">محليات ومدن (location_city)</option>
                   </select>
                 </div>
 
@@ -433,7 +675,7 @@
 
               <div class="form-group">
                 <label for="compass-flag-url">رابط صورة العلم أو الشعار الخاص بالبوصلة (اختياري)</label>
-                <input type="url" id="compass-flag-url" class="form-input" placeholder="https://flagcdn.com/w80/ye.png">
+                <input type="url" id="compass-flag-url" class="form-input" placeholder="https://flagcdn.com/w80/ye.png" dir="ltr">
               </div>
 
               <div class="form-group">
@@ -468,7 +710,6 @@
             </form>
           </div>
 
-          <!-- قائمة البوصلات والأقسام الحالية مع أزرار التعديل والإخفاء/الإظهار -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -476,7 +717,7 @@
                 <h2>الأقسام والبوصلات المعتمدة</h2>
               </div>
               <button type="button" id="seed-default-compasses-btn" class="btn-outline sm-btn">
-                <span class="material-symbols-rounded" translate="no">Sync</span>
+                <span class="material-symbols-rounded" translate="no">sync</span>
                 <span>استعادة الأقسام الأساسية</span>
               </button>
             </div>
@@ -487,11 +728,21 @@
       </section>
 
       <!-- =================================================================
-           التبويب (4): إدارة الكادر الصحفي، التوثيق، والترحيب الفوري (Staff)
+           التبويب (6): إدارة الكادر الصحفي، التوثيق، والترحيب الفوري (Staff)
            ================================================================= -->
       <section id="tab-staff" class="ops-tab-section hidden">
+        <!-- صندوق طلبات التوثيق وطلبات تغيير الاسم المعلقة (يظهر للقيادة عند وجود طلبات) -->
+        <div id="staff-pending-requests-panel" class="panel-card hidden" style="border-right: 5px solid var(--warning);">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="material-symbols-rounded" style="color:var(--warning);" translate="no">pending_actions</span>
+              <h2>طلبات التوثيق (KYC) وتعديل الأسماء بانتظار قرار القيادة</h2>
+            </div>
+          </div>
+          <div id="staff-pending-requests-list" class="ops-staff-list"></div>
+        </div>
+
         <div class="ops-grid-sidebar">
-          <!-- نموذج إضافة أو تعديل صحفي -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -534,8 +785,15 @@
               </div>
 
               <div class="form-group">
-                <label for="staff-avatar">رابط الصورة الشخصية للكاتب (اختياري)</label>
-                <input type="url" id="staff-avatar" class="form-input" placeholder="https://..." dir="ltr">
+                <label for="staff-avatar">رابط الصورة الشخصية للكاتب (أو ارفع صورة)</label>
+                <div class="input-with-action">
+                  <input type="url" id="staff-avatar" class="form-input" placeholder="https://..." dir="ltr">
+                  <label for="staff-avatar-file" class="btn-outline sm-btn upload-label-btn">
+                    <span class="material-symbols-rounded" translate="no">upload_file</span>
+                    <span>رفع</span>
+                  </label>
+                  <input type="file" id="staff-avatar-file" accept="image/*" class="hidden">
+                </div>
               </div>
 
               <div class="form-group">
@@ -543,7 +801,6 @@
                 <textarea id="staff-bio" class="form-textarea" rows="2" placeholder="نبذة مختصرة تظهر في ملف الكاتب..."></textarea>
               </div>
 
-              <!-- ضوابط التوثيق والتقييد الدقيق -->
               <div class="staff-controls-box">
                 <label class="check-pill">
                   <input type="checkbox" id="staff-verified">
@@ -566,17 +823,16 @@
 
               <button type="submit" class="btn-primary" style="width:100%;">
                 <span class="material-symbols-rounded" translate="no">save</span>
-                <span>حفظ بيانات الصحفي</span>
+                <span>اعتماد وحفظ الصحفي في السجل</span>
               </button>
             </form>
           </div>
 
-          <!-- قائمة الكادر الصحفي وأزرار الترحيب والتنبيه والتعديل -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
                 <span class="material-symbols-rounded" translate="no">groups</span>
-                <h2>سجل الكادر الصحفي وأقلام الصحيفة</h2>
+                <h2>سجل الكادر الصحفي المعتمد</h2>
               </div>
               <input type="search" id="ops-staff-search" class="form-input sm-input" placeholder="بحث عن صحفي...">
             </div>
@@ -587,11 +843,10 @@
       </section>
 
       <!-- =================================================================
-           التبويب (5): إدارة الإعلانات والرعايات (Ads Manager)
+           التبويب (7): إدارة الإعلانات والرعايات (Ads Manager)
            ================================================================= -->
       <section id="tab-ads" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
-          <!-- نموذج إنشاء أو تعديل إعلان -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -645,7 +900,6 @@
             </form>
           </div>
 
-          <!-- قائمة الإعلانات الحالية مع أزرار التعديل والإحصائيات -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -660,7 +914,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (6): ميثاق الشرف الصحفي وتعليمات السلامة المهنية (Charter)
+           التبويب (8): ميثاق الشرف الصحفي وتعليمات السلامة المهنية (Charter)
            ================================================================= -->
       <section id="tab-charter" class="ops-tab-section hidden">
         <div class="panel-card">
@@ -721,7 +975,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (7): الإعدادات السيادية النظيفة (Sovereign Settings)
+           التبويب (9): الإعدادات السيادية النظيفة (Sovereign Settings)
            ================================================================= -->
       <section id="tab-settings" class="ops-tab-section hidden">
         <div class="panel-card">
@@ -802,12 +1056,12 @@
 
             <h3 class="settings-sub-heading">3. تحرير صفحة "من نحن" والميثاق الصحفي وسياسة الخصوصية</h3>
             <div class="form-group">
-              <label for="set-about-html">محتوى صفحة "من نحن والتوجيه الوطني" (يدعم HTML أو النص المباشر)</label>
+              <label for="set-about-html">محتوى صفحة "من نحن والتوجيه الوطني"</label>
               <textarea id="set-about-html" class="form-textarea" rows="6"></textarea>
             </div>
 
             <div class="form-group">
-              <label for="set-charter-html">محتوى "ميثاق الشرف الصحفي والسياسة التحريرية" (يُرسل أيضاً عند الترحيب بالصحفيين)</label>
+              <label for="set-charter-html">محتوى "ميثاق الشرف الصحفي والسياسة التحريرية"</label>
               <textarea id="set-charter-html" class="form-textarea" rows="6"></textarea>
             </div>
 
@@ -834,17 +1088,22 @@
     <nav class="ops-bottom-dock" aria-label="التنقل السفلي لغرفة العمليات">
       <button type="button" class="dock-btn active" data-ops-tab="dashboard">
         <span class="material-symbols-rounded" translate="no">space_dashboard</span>
-        <span>المنشورات</span>
+        <span>منشوراتي</span>
       </button>
 
-      <button type="button" class="dock-btn" data-ops-tab="compasses" id="dock-btn-compasses">
-        <span class="material-symbols-rounded" translate="no">category</span>
-        <span>البوصلات</span>
+      <button type="button" class="dock-btn" data-ops-tab="notebook">
+        <span class="material-symbols-rounded" translate="no">menu_book</span>
+        <span>الملاحظات</span>
       </button>
 
       <!-- الزر المركزي البارز للإنشاء السريع (+) -->
-      <button type="button" id="magic-create-btn" class="magic-center-btn" aria-label="ماذا تريد أن تنشر؟">
+      <button type="button" id="magic-create-btn" class="magic-center-btn" aria-label="ماذا تريد أن تنشر أو تدوّن؟">
         <span class="material-symbols-rounded" translate="no">add</span>
+      </button>
+
+      <button type="button" class="dock-btn" data-ops-tab="profile">
+        <span class="material-symbols-rounded" translate="no">manage_accounts</span>
+        <span>ملفي</span>
       </button>
 
       <button type="button" class="dock-btn" data-ops-tab="staff" id="dock-btn-staff">
@@ -852,9 +1111,9 @@
         <span>الكادر</span>
       </button>
 
-      <button type="button" class="dock-btn" data-ops-tab="settings" id="dock-btn-settings">
-        <span class="material-symbols-rounded" translate="no">tune</span>
-        <span>الإعدادات</span>
+      <button type="button" class="dock-btn hidden" data-ops-tab="charter" id="dock-btn-charter">
+        <span class="material-symbols-rounded" translate="no">policy</span>
+        <span>الميثاق</span>
       </button>
     </nav>
 
@@ -864,11 +1123,11 @@
        4. النوافذ المنبثقة الذكية (Modals)
        ===================================================================== -->
 
-  <!-- (أ) نافذة الزر المركزي السحري: ماذا تريد أن تنشر؟ -->
+  <!-- (أ) نافذة الزر المركزي السحري (+) -->
   <div id="magic-publish-modal" class="ops-modal-backdrop hidden">
     <div class="ops-modal-card sm-modal">
       <div class="ops-modal-header">
-        <h3>ماذا تريد أن تنشر الآن؟</h3>
+        <h3>ماذا تريد أن تنشئ الآن؟</h3>
         <button type="button" class="icon-btn sm-btn" data-close-modal="magic-publish-modal">
           <span class="material-symbols-rounded" translate="no">close</span>
         </button>
@@ -894,23 +1153,23 @@
           </div>
         </button>
 
+        <button type="button" id="magic-opt-note" class="magic-option-card">
+          <div class="magic-opt-icon green-stat">
+            <span class="material-symbols-rounded" translate="no">menu_book</span>
+          </div>
+          <div>
+            <strong>تدوين فكرة في دفتر الملاحظات</strong>
+            <p>حفظ فكرة مقال أو مصدر سري في دفترك الشخصي الخاص</p>
+          </div>
+        </button>
+
         <button type="button" id="magic-opt-ad" class="magic-option-card">
           <div class="magic-opt-icon amber-stat">
             <span class="material-symbols-rounded" translate="no">campaign</span>
           </div>
           <div>
             <strong>إضافة حملة إعلانية جديدة</strong>
-            <p>إنشاء أو تعديل بطاقة إعلانية أو بانر راعٍ في الموقع</p>
-          </div>
-        </button>
-
-        <button type="button" id="magic-opt-compass" class="magic-option-card">
-          <div class="magic-opt-icon green-stat">
-            <span class="material-symbols-rounded" translate="no">explore</span>
-          </div>
-          <div>
-            <strong>إنشاء بوصلة أو قسم جديد</strong>
-            <p>إضافة بوصلة تخصصية جديدة مع الفئات الفرعية والعلم</p>
+            <p>إنشاء بطاقة إعلانية أو بانر راعٍ في الموقع العام</p>
           </div>
         </button>
       </div>
@@ -967,13 +1226,13 @@
     </div>
   </div>
 
-  <!-- (ج) نافذة فتح ومعاينة المنشور داخل غرفة العمليات -->
+  <!-- (ج) نافذة معاينة ومراجعة المنشور (بدون زيادة عداد القراءات نهائياً) -->
   <div id="article-preview-modal" class="ops-modal-backdrop hidden">
     <div class="ops-modal-card lg-modal">
       <div class="ops-modal-header">
         <div class="panel-title-wrap">
-          <span class="material-symbols-rounded" translate="no">visibility</span>
-          <h3>معاينة ومراجعة المادة الصحفية</h3>
+          <span class="material-symbols-rounded" translate="no">fact_check</span>
+          <h3>معاينة ومراجعة المادة الصحفية (معاينة داخلية لا تحسب قراءة)</h3>
         </div>
         <button type="button" class="icon-btn sm-btn" data-close-modal="article-preview-modal">
           <span class="material-symbols-rounded" translate="no">close</span>
@@ -990,9 +1249,13 @@
       </div>
 
       <div class="ops-modal-footer">
-        <button type="button" id="preview-approve-btn" class="btn-primary hidden">
+        <button type="button" id="preview-approve-btn" class="btn-success hidden">
           <span class="material-symbols-rounded" translate="no">check_circle</span>
           <span>اعتماد ونشر في الموقع العام</span>
+        </button>
+        <button type="button" id="preview-reject-btn" class="btn-danger hidden">
+          <span class="material-symbols-rounded" translate="no">assignment_return</span>
+          <span>إعادة للكاتب مع ملاحظة تعديل</span>
         </button>
         <button type="button" id="preview-edit-btn" class="btn-outline">
           <span class="material-symbols-rounded" translate="no">edit</span>
