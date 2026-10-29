@@ -1,6 +1,6 @@
 /* ==========================================================================
-   غرفة العمليات المركزية — شبكة البوصلة (RAWI-YE.COM)
-   تصميم نهاري كلاسيكي صلب ومستقر 100% — يشمل دفتر الملاحظات والملف الشخصي
+   البوابة الذكية التحريرية — شبكة البوصلة (RAWI-YE.COM)
+   تصميم نهاري أنيق، عملي، ومستقر 100% — يشمل العزل الذكي ودفتر الملاحظات والهوية
    ========================================================================== */
 
 :root {
@@ -490,7 +490,7 @@ img {
   gap: 6px;
 }
 
-/* ==================== 5. دفتر الملاحظات الشخصي وملفي الشخصي ==================== */
+/* ==================== 5. دفتر الملاحظات الشخصي وملف الهوية ==================== */
 .notebook-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
@@ -581,6 +581,24 @@ img {
   font-size: 0.85rem;
   font-weight: 800;
   color: var(--primary);
+}
+
+.kyc-locked-box {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--success-light);
+  border: 1px solid rgba(21, 128, 61, 0.25);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.kyc-locked-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--success);
+  margin-bottom: 6px;
+  font-size: 0.9rem;
 }
 
 /* ==================== 6. النماذج والمحرر (Forms & Editor) ==================== */
