@@ -1,6 +1,6 @@
 /* ==========================================================================
    البوابة الذكية التحريرية — شبكة البوصلة (RAWI-YE.COM)
-   تصميم نهاري أنيق، عملي، ومستقر 100% — يشمل العزل الذكي ودفتر الملاحظات والهوية
+   تصميم نهاري أنيق، عملي، ومستقر 100% — يشمل شاشة التهيئة، الأجهزة الموثوقة، ورمز PIN
    ========================================================================== */
 
 :root {
@@ -64,7 +64,7 @@ img {
   padding: 0 16px;
 }
 
-/* ==================== 1. شاشة تسجيل الدخول المحصنة ==================== */
+/* ==================== 1. شاشة التهيئة الآمنة وبوابة الدخول المستقلة ==================== */
 .auth-screen {
   min-height: 100vh;
   display: flex;
@@ -76,11 +76,11 @@ img {
 
 .auth-card {
   width: 100%;
-  max-width: 450px;
+  max-width: 460px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 32px 26px;
+  padding: 30px 26px;
   text-align: center;
   box-shadow: var(--shadow-md);
 }
@@ -94,11 +94,34 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .auth-brand-mark .material-symbols-rounded {
   font-size: 32px;
+}
+
+.pulse-mark {
+  animation: pulseScale 1.6s infinite ease-in-out;
+}
+
+@keyframes pulseScale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.secure-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  margin: 10px auto 0;
+  animation: spinLoader 0.85s linear infinite;
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
 }
 
 .auth-kicker {
@@ -116,23 +139,130 @@ img {
 }
 
 .auth-subtitle {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   color: var(--text-secondary);
-  margin-bottom: 22px;
+  margin-bottom: 20px;
+}
+
+.input-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-wrap > .material-symbols-rounded {
+  position: absolute;
+  right: 12px;
+  color: var(--text-muted);
+  font-size: 20px;
+  pointer-events: none;
+}
+
+.input-icon-wrap .form-input {
+  padding-right: 40px;
+  padding-left: 40px;
+}
+
+.pass-toggle-btn {
+  position: absolute;
+  left: 8px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pass-toggle-btn:hover {
+  color: var(--primary);
+}
+
+.trust-device-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pin-setup-subbox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.pin-setup-subbox label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.sm-pin-input {
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.pin-user-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.pin-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
+  margin-bottom: 4px;
+}
+
+.pin-user-welcome strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.pin-user-welcome span {
+  font-size: 0.78rem;
+  color: var(--success);
+  font-weight: 800;
+}
+
+.pin-code-input {
+  text-align: center;
+  font-size: 1.6rem !important;
+  font-weight: 900;
+  letter-spacing: 12px;
+  padding: 10px !important;
 }
 
 .auth-google-btn {
   width: 100%;
   justify-content: center;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .auth-footer-note {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--text-muted);
+  margin-top: 8px;
 }
 
 .auth-footer-note .material-symbols-rounded {
@@ -375,7 +505,7 @@ img {
 /* ==================== 4. الفلاتر وقائمة المنشورات ==================== */
 .filters-bar {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -490,7 +620,7 @@ img {
   gap: 6px;
 }
 
-/* ==================== 5. دفتر الملاحظات الشخصي وملف الهوية ==================== */
+/* ==================== 5. دفتر الملاحظات، الهوية، والأجهزة الموثوقة ==================== */
 .notebook-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
@@ -599,6 +729,43 @@ img {
   color: var(--success);
   margin-bottom: 6px;
   font-size: 0.9rem;
+}
+
+.trusted-devices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trusted-device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+}
+
+.trusted-device-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trusted-device-meta .material-symbols-rounded {
+  color: var(--primary);
+}
+
+.trusted-device-meta strong {
+  display: block;
+  font-size: 0.84rem;
+}
+
+.trusted-device-meta span {
+  font-size: 0.73rem;
+  color: var(--text-muted);
 }
 
 /* ==================== 6. النماذج والمحرر (Forms & Editor) ==================== */
@@ -1211,8 +1378,7 @@ img {
 /* ==================== 12. التجاوب مع الشاشات ==================== */
 @media (max-width: 1080px) {
   .ops-grid-sidebar,
-  .charter-grid,
-  .filters-bar {
+  .charter-grid {
     grid-template-columns: 1fr;
   }
   .ops-desktop-nav {
