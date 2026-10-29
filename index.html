@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>غرفة العمليات المركزية | شبكة البوصلة — RAWI-YE.COM</title>
+  <title>البوابة الذكية التحريرية | شبكة البوصلة — RAWI-YE.COM</title>
   <meta name="robots" content="noindex, nofollow">
 
   <!-- الخطوط العربية الرسمية ومكتبة الأيقونات العالمية Google Material Symbols -->
@@ -12,13 +12,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0" rel="stylesheet">
 
-  <!-- ملف التصميم الكلاسيكي لغرفة العمليات -->
+  <!-- ملف المظهر الأنيق للبوابة الذكية التحريرية -->
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
   <!-- =====================================================================
-       1. بوابة المصادقة المحصنة (Closed Authentication Gate)
+       1. بوابة المصادقة الذكية المغلقة (Closed Authentication Gate)
        ===================================================================== -->
   <section id="auth-screen" class="auth-screen">
     <div class="auth-card">
@@ -26,8 +26,8 @@
         <span class="material-symbols-rounded" translate="no">explore</span>
       </div>
       <span class="auth-kicker">مؤسسة RAWI-YE.COM الإعلامية الرقمية</span>
-      <h1 class="auth-title">غرفة العمليات المركزية</h1>
-      <p class="auth-subtitle">منظومة الإدارة والتحرير الصحفي — شبكة البوصلة الإخبارية</p>
+      <h1 class="auth-title">البوابة الذكية التحريرية</h1>
+      <p class="auth-subtitle">منظومة التحرير والنشر الصحفي المتكاملة — شبكة البوصلة الإخبارية</p>
 
       <div id="auth-error-box" class="alert-banner alert-danger hidden" style="margin-bottom: 16px; text-align: right;">
         <div class="alert-content">
@@ -42,18 +42,18 @@
       </button>
 
       <div class="auth-footer-note">
-        <span class="material-symbols-rounded" translate="no">lock</span>
-        <span>منطقة محمية: الدخول مقتصر حصرياً على الصحفيين المسجلين مسبقاً لدى القيادة</span>
+        <span class="material-symbols-rounded" translate="no">verified_user</span>
+        <span>بوابة محصنة: الدخول مقتصر حصرياً على الكادر الصحفي المعتمد مسبقاً</span>
       </div>
     </div>
   </section>
 
   <!-- =====================================================================
-       2. الهيكل الرئيسي لغرفة العمليات (Main Workspace)
+       2. الهيكل الرئيسي للبوابة الذكية التحريرية (Main Portal Workspace)
        ===================================================================== -->
   <div id="ops-app" class="ops-app hidden">
 
-    <!-- الترويسة العلوية الكلاسيكية الصلبة -->
+    <!-- الترويسة العلوية -->
     <header class="ops-header">
       <div class="ops-container header-inner">
         <div class="header-right">
@@ -63,16 +63,16 @@
             </div>
             <div>
               <div class="ops-brand-title-row">
-                <strong id="ops-header-title">غرفة عمليات البوصلة</strong>
+                <strong id="ops-header-title">البوابة الذكية التحريرية</strong>
                 <span id="current-user-role-badge" class="role-badge">صحفي</span>
               </div>
-              <span class="ops-brand-sub">مؤسسة RAWI-YE.COM الإعلامية</span>
+              <span class="ops-brand-sub">شبكة البوصلة — RAWI-YE.COM</span>
             </div>
           </div>
         </div>
 
         <!-- شريط التنقل العلوي لسطح المكتب -->
-        <nav class="ops-desktop-nav" aria-label="أقسام غرفة العمليات">
+        <nav class="ops-desktop-nav" aria-label="أقسام البوابة الذكية التحريرية">
           <button type="button" class="ops-nav-btn active" data-ops-tab="dashboard">
             <span class="material-symbols-rounded" translate="no">space_dashboard</span>
             <span id="nav-label-dashboard">لوحة المتابعة</span>
@@ -87,7 +87,7 @@
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="profile">
             <span class="material-symbols-rounded" translate="no">manage_accounts</span>
-            <span>ملفي والتوثيق</span>
+            <span>ملفي والهوية</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="compasses" id="nav-tab-compasses">
             <span class="material-symbols-rounded" translate="no">category</span>
@@ -149,7 +149,7 @@
     <main class="ops-container ops-main">
 
       <!-- =================================================================
-           التبويب (1): لوحة المتابعة وإدارة المنشورات (معزولة حسب الصلاحية)
+           التبويب (1): لوحة المتابعة وإدارة المنشورات (معزولة ذكياً حسب الصلاحية)
            ================================================================= -->
       <section id="tab-dashboard" class="ops-tab-section">
         <div class="stats-grid">
@@ -450,7 +450,7 @@
 
               <div class="form-group">
                 <label for="note-content">تفاصيل الملاحظة أو النص المحفوظ *</label>
-                <textarea id="note-content" class="form-textarea" rows="7" required placeholder="دوّن أفكارك، أرقام التواصل، الاقتباسات، أو مسوداتك الخاصة هنا... (ملاحظاتك مشفرة وخاصة بك وحدك)"></textarea>
+                <textarea id="note-content" class="form-textarea" rows="7" required placeholder="دوّن أفكارك، أرقام التواصل، الاقتباسات، أو مسوداتك الخاصة هنا... (ملاحظاتك معزولة وخاصة بك وحدك)"></textarea>
               </div>
 
               <label class="check-pill">
@@ -487,7 +487,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (4): ملفي الشخصي وطلب التوثيق بالشارة الزرقاء (My Profile & KYC)
+           التبويب (4): ملفي الشخصي وتوثيق الهوية بالشارة الزرقاء (My Profile & KYC)
            ================================================================= -->
       <section id="tab-profile" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
@@ -496,7 +496,7 @@
             <div class="panel-header">
               <div class="panel-title-wrap">
                 <span class="material-symbols-rounded" translate="no">badge</span>
-                <h2>بطاقتي الصحفية وحالة التوثيق</h2>
+                <h2>بطاقتي الصحفية وتوثيق الهوية</h2>
               </div>
             </div>
 
@@ -507,27 +507,44 @@
                 <span id="my-profile-card-verified" class="material-symbols-rounded verified-icon hidden" translate="no" title="صحفي موثق بالشارة الزرقاء">verified</span>
               </div>
               <p id="my-profile-card-role" class="my-profile-job"></p>
-              <div id="my-profile-pending-name-box" class="alert-banner alert-warning hidden" style="margin-top:10px;font-size:0.78rem;">
-                <span class="material-symbols-rounded" translate="no">schedule</span>
-                <span id="my-profile-pending-name-text"></span>
+
+              <!-- تنبيه مراجعة الاسم -->
+              <div id="my-profile-pending-name-box" class="alert-banner alert-warning hidden" style="margin-top:10px;font-size:0.78rem;width:100%;">
+                <div class="alert-content">
+                  <span class="material-symbols-rounded" translate="no">schedule</span>
+                  <span id="my-profile-pending-name-text"></span>
+                </div>
               </div>
             </div>
 
             <hr class="form-divider" style="margin: 18px 0;">
 
-            <!-- قسم طلب التوثيق بالشارة الزرقاء (KYC) -->
+            <!-- قسم توثيق الهوية بالشارة الزرقاء (KYC) مع حماية الهوية بعد التوثيق -->
             <div id="kyc-verification-section">
               <h3 class="settings-sub-heading" style="margin-bottom: 8px;">
                 <span class="material-symbols-rounded" style="vertical-align:middle;" translate="no">verified</span>
-                <span>التوثيق بالشارة الزرقاء (KYC)</span>
+                <span>توثيق الهوية الصحفية (الشارة الزرقاء)</span>
               </h3>
               <p id="kyc-status-desc" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">
                 تمنح الشارة الزرقاء للصحفيين المعتمدين صلاحية النشر المباشر وتظهر بجانب اسمك وصورتك في جميع مقالاتك بالموقع العام.
               </p>
 
+              <!-- صندوق الهوية الموثقة والمحمية (يظهر عند توثيق الهوية) -->
+              <div id="kyc-verified-locked-box" class="kyc-locked-box hidden">
+                <div class="kyc-locked-header">
+                  <span class="material-symbols-rounded" translate="no">lock</span>
+                  <strong>هويتك الصحفية موثقة ومحمية</strong>
+                </div>
+                <p>لا يمكن تعديل بيانات الهوية الموثقة مباشرة؛ أي تعديل على وثيقة الهوية يُحال فوراً لمراجعة القيادة العليا.</p>
+                <button type="button" id="kyc-update-identity-btn" class="btn-outline sm-btn" style="margin-top:8px;width:100%;">
+                  <span class="material-symbols-rounded" translate="no">sync_lock</span>
+                  <span>طلب تحديث وثيقة الهوية (يُحال للمراجعة)</span>
+                </button>
+              </div>
+
               <form id="kyc-request-form" class="ops-form">
                 <div class="form-group">
-                  <label for="kyc-doc-url">رابط صورة البطاقة الصحفية أو إثبات الهوية (أو ارفعها من جهازك)</label>
+                  <label for="kyc-doc-url">رابط صورة البطاقة الصحفية أو إثبات الهوية (أو ارفعها من جهازك) *</label>
                   <div class="input-with-action">
                     <input type="url" id="kyc-doc-url" class="form-input" placeholder="https://..." dir="ltr">
                     <label for="kyc-doc-file" class="btn-outline sm-btn upload-label-btn">
@@ -539,13 +556,13 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="kyc-note">ملاحظة أو نبذة عن خبراتك الصحفية للقيادة</label>
-                  <textarea id="kyc-note" class="form-textarea" rows="2" placeholder="اكتب توضيحاً مختصراً لطلب التوثيق..."></textarea>
+                  <label for="kyc-note">بيانات الهوية أو نبذة عن الصفة الصحفية للقيادة *</label>
+                  <textarea id="kyc-note" class="form-textarea" rows="2" placeholder="اكتب رقم الوثيقة أو توضيحاً مختصراً لطلب التوثيق..."></textarea>
                 </div>
 
                 <button type="submit" id="kyc-submit-btn" class="btn-primary" style="width:100%;">
                   <span class="material-symbols-rounded" translate="no">send</span>
-                  <span>إرسال طلب التوثيق للقيادة العليا</span>
+                  <span>إرسال الهوية للمراجعة والتوثيق</span>
                 </button>
               </form>
             </div>
@@ -565,7 +582,7 @@
                 <div class="form-group">
                   <label for="my-prof-name">الاسم الصحفي الظاهر للقراء *</label>
                   <input type="text" id="my-prof-name" class="form-input" required>
-                  <span class="field-hint">ملاحظة: أي تغيير في الاسم الأساسي يُحال لموافقة القيادة العليا أولاً لمنع انتحال الهوية.</span>
+                  <span class="field-hint">حماية الهوية: أي تعديل في الاسم لا يُنشر فوراً، بل يُحال لمراجعة القيادة العليا لاعتماده.</span>
                 </div>
 
                 <div class="form-group">
@@ -578,7 +595,7 @@
                 <div class="form-group">
                   <label for="my-prof-email">البريد الإلكتروني المعتمد للدخول (Google Email) *</label>
                   <input type="email" id="my-prof-email" class="form-input" required dir="ltr">
-                  <span class="field-hint">إذا قمت بتغيير بريدك، سيُنقل ملفك وصلاحياتك ومقالاتك تلقائياً إلى بريدك الجديد.</span>
+                  <span class="field-hint">في حال تغيير بريدك، يُنقل حسابك ومقالاتك وملاحظاتك تلقائياً للبريد الجديد.</span>
                 </div>
 
                 <div class="form-group">
@@ -728,15 +745,15 @@
       </section>
 
       <!-- =================================================================
-           التبويب (6): إدارة الكادر الصحفي، التوثيق، والترحيب الفوري (Staff)
+           التبويب (6): إدارة الكادر الصحفي، مراجعة الهوية والأسماء، والترحيب (Staff)
            ================================================================= -->
       <section id="tab-staff" class="ops-tab-section hidden">
-        <!-- صندوق طلبات التوثيق وطلبات تغيير الاسم المعلقة (يظهر للقيادة عند وجود طلبات) -->
+        <!-- صندوق طلبات توثيق الهوية (KYC) وتعديل الأسماء المعلقة -->
         <div id="staff-pending-requests-panel" class="panel-card hidden" style="border-right: 5px solid var(--warning);">
           <div class="panel-header">
             <div class="panel-title-wrap">
               <span class="material-symbols-rounded" style="color:var(--warning);" translate="no">pending_actions</span>
-              <h2>طلبات التوثيق (KYC) وتعديل الأسماء بانتظار قرار القيادة</h2>
+              <h2>طلبات توثيق الهوية (KYC) وتعديل الأسماء بانتظار اعتماد القيادة</h2>
             </div>
           </div>
           <div id="staff-pending-requests-list" class="ops-staff-list"></div>
@@ -944,7 +961,7 @@
                   <span class="material-symbols-rounded" translate="no">verified_user</span>
                   <div>
                     <strong>أمن الحسابات والمصادر:</strong>
-                    <p>يُحظر مشاركة رابط أو حساب الدخول لغرفة العمليات مع أي طرف خارجي، ويلتزم الصحفي بحماية سرية مصادره الخاصة.</p>
+                    <p>يُحظر مشاركة رابط أو حساب الدخول للبوابة الذكية التحريرية مع أي طرف خارجي، ويلتزم الصحفي بحماية سرية مصادره الخاصة.</p>
                   </div>
                 </li>
                 <li>
@@ -1083,9 +1100,9 @@
     </main>
 
     <!-- ===================================================================
-         3. الشريط السفلي لغرفة العمليات مع الزر المركزي السحري (+)
+         3. الشريط السفلي للبوابة مع الزر المركزي السحري (+)
          =================================================================== -->
-    <nav class="ops-bottom-dock" aria-label="التنقل السفلي لغرفة العمليات">
+    <nav class="ops-bottom-dock" aria-label="التنقل السفلي للبوابة الذكية التحريرية">
       <button type="button" class="dock-btn active" data-ops-tab="dashboard">
         <span class="material-symbols-rounded" translate="no">space_dashboard</span>
         <span>منشوراتي</span>
@@ -1226,13 +1243,13 @@
     </div>
   </div>
 
-  <!-- (ج) نافذة معاينة ومراجعة المنشور (بدون زيادة عداد القراءات نهائياً) -->
+  <!-- (ج) نافذة معاينة ومراجعة المنشور (معاينة داخلية لا تزيد القراءات) -->
   <div id="article-preview-modal" class="ops-modal-backdrop hidden">
     <div class="ops-modal-card lg-modal">
       <div class="ops-modal-header">
         <div class="panel-title-wrap">
           <span class="material-symbols-rounded" translate="no">fact_check</span>
-          <h3>معاينة ومراجعة المادة الصحفية (معاينة داخلية لا تحسب قراءة)</h3>
+          <h3>معاينة ومراجعة المادة الصحفية (معاينة داخلية آمنة)</h3>
         </div>
         <button type="button" class="icon-btn sm-btn" data-close-modal="article-preview-modal">
           <span class="material-symbols-rounded" translate="no">close</span>
@@ -1269,7 +1286,7 @@
   <!-- شريط الإشعارات الفوري (Toast) -->
   <div id="ops-toast" class="ops-toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- المحرك البرمجي لغرفة العمليات -->
+  <!-- المحرك البرمجي للبوابة الذكية التحريرية -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
