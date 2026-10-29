@@ -18,17 +18,33 @@
 <body>
 
   <!-- =====================================================================
-       1. بوابة المصادقة الذكية المغلقة (Closed Authentication Gate)
+       0. شاشة الانتظار والتهيئة الآمنة (تمنع التسرع أثناء فحص الجهاز الموثوق)
        ===================================================================== -->
-  <section id="auth-screen" class="auth-screen">
+  <section id="session-loader-screen" class="auth-screen">
+    <div class="auth-card loader-card">
+      <div class="auth-brand-mark pulse-mark">
+        <span class="material-symbols-rounded" translate="no">verified_user</span>
+      </div>
+      <span class="auth-kicker">شبكة البوصلة — RAWI-YE.COM</span>
+      <h2 id="loader-title" class="auth-title" style="font-size:1.25rem;">الرجاء الانتظار...</h2>
+      <p id="loader-subtitle" class="auth-subtitle" style="margin-bottom:16px;">يتم التحقق من الجهاز وتهيئة دخولك بأمان</p>
+      <div class="secure-spinner" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       1. بوابة المصادقة المستقلة (اسم مستخدم + كلمة مرور + رمز الدخول السريع)
+       ===================================================================== -->
+  <section id="auth-screen" class="auth-screen hidden">
     <div class="auth-card">
       <div class="auth-brand-mark">
         <span class="material-symbols-rounded" translate="no">explore</span>
       </div>
       <span class="auth-kicker">مؤسسة RAWI-YE.COM الإعلامية الرقمية</span>
       <h1 class="auth-title">البوابة الذكية التحريرية</h1>
-      <p class="auth-subtitle">منظومة التحرير والنشر الصحفي المتكاملة — شبكة البوصلة الإخبارية</p>
+      <p class="auth-subtitle">منظومة القيادة والتحرير الصحفي — شبكة البوصلة الإخبارية</p>
 
+      <!-- صندوق رسائل الخطأ أو التنبيه -->
       <div id="auth-error-box" class="alert-banner alert-danger hidden" style="margin-bottom: 16px; text-align: right;">
         <div class="alert-content">
           <span class="material-symbols-rounded" translate="no">gpp_bad</span>
@@ -36,14 +52,76 @@
         </div>
       </div>
 
-      <button type="button" id="google-login-btn" class="btn-primary btn-lg auth-google-btn">
-        <span class="material-symbols-rounded" translate="no">login</span>
-        <span>تسجيل الدخول عبر حساب Google المعتمد</span>
-      </button>
+      <!-- (أ) واجهة رمز الدخول السريع (4 أرقام) للأجهزة الموثوقة المحمية -->
+      <div id="pin-unlock-view" class="hidden">
+        <div class="pin-user-welcome">
+          <img id="pin-user-avatar" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="pin-avatar">
+          <strong id="pin-user-name">مرحباً بعودتك</strong>
+          <span>هذا الجهاز موثوق ومحمي برمز الدخول السريع</span>
+        </div>
+
+        <form id="pin-unlock-form" class="ops-form" style="margin-top:14px;">
+          <div class="form-group">
+            <label for="quick-pin-input" style="text-align:center;">أدخل رمز الدخول السريع (4 أرقام)</label>
+            <input type="password" id="quick-pin-input" class="form-input pin-code-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" required autocomplete="off">
+          </div>
+
+          <button type="submit" class="btn-primary btn-lg" style="width:100%;">
+            <span class="material-symbols-rounded" translate="no">lock_open</span>
+            <span>فتح البوابة الآن</span>
+          </button>
+
+          <button type="button" id="switch-to-password-btn" class="btn-outline sm-btn" style="width:100%;">
+            <span class="material-symbols-rounded" translate="no">password</span>
+            <span>الدخول باسم مستخدم وكلمة مرور</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- (ب) واجهة تسجيل الدخول القياسية (اسم المستخدم + كلمة المرور) -->
+      <form id="credentials-login-form" class="ops-form" style="text-align:right;">
+        <div class="form-group">
+          <label for="login-username">اسم المستخدم أو البريد الإلكتروني *</label>
+          <div class="input-icon-wrap">
+            <span class="material-symbols-rounded" translate="no">person</span>
+            <input type="text" id="login-username" class="form-input" required placeholder="أدخل اسم المستخدم أو بريدك..." dir="ltr" autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">كلمة المرور *</label>
+          <div class="input-icon-wrap">
+            <span class="material-symbols-rounded" translate="no">key</span>
+            <input type="password" id="login-password" class="form-input" required placeholder="••••••••" dir="ltr" autocomplete="current-password">
+            <button type="button" id="toggle-login-pass-btn" class="pass-toggle-btn" title="إظهار / إخفاء كلمة المرور">
+              <span class="material-symbols-rounded" translate="no">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- خيار الوثوق بهذا الجهاز + رمز الحماية السريع الاختياري -->
+        <div class="trust-device-box">
+          <label class="check-pill" style="background:#ffffff; width:100%;">
+            <input type="checkbox" id="login-trust-device" checked>
+            <span class="material-symbols-rounded" style="color:var(--primary);" translate="no">devices</span>
+            <span>الوثوق بهذا الجهاز للدخول المباشر مستقبلاً</span>
+          </label>
+
+          <div id="login-pin-setup-wrap" class="pin-setup-subbox">
+            <label for="login-quick-pin">تأمين هذا الجهاز برمز سريع من 4 أرقام (اختياري):</label>
+            <input type="password" id="login-quick-pin" class="form-input sm-pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="مثال: 1234 (أو اتركه فارغاً للدخول الفوري)" dir="ltr" autocomplete="off">
+          </div>
+        </div>
+
+        <button type="submit" id="login-submit-btn" class="btn-primary btn-lg auth-google-btn" style="margin-top:4px;">
+          <span class="material-symbols-rounded" translate="no">login</span>
+          <span>تسجيل الدخول إلى البوابة</span>
+        </button>
+      </form>
 
       <div class="auth-footer-note">
-        <span class="material-symbols-rounded" translate="no">verified_user</span>
-        <span>بوابة محصنة: الدخول مقتصر حصرياً على الكادر الصحفي المعتمد مسبقاً</span>
+        <span class="material-symbols-rounded" translate="no">shield_lock</span>
+        <span>بوابة محصنة: الدخول مقتصر حصرياً على القيادة والكادر الصحفي المعتمد</span>
       </div>
     </div>
   </section>
@@ -75,7 +153,7 @@
         <nav class="ops-desktop-nav" aria-label="أقسام البوابة الذكية التحريرية">
           <button type="button" class="ops-nav-btn active" data-ops-tab="dashboard">
             <span class="material-symbols-rounded" translate="no">space_dashboard</span>
-            <span id="nav-label-dashboard">لوحة المتابعة</span>
+            <span id="nav-label-dashboard">منشوراتي</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="editor">
             <span class="material-symbols-rounded" translate="no">edit_document</span>
@@ -87,7 +165,7 @@
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="profile">
             <span class="material-symbols-rounded" translate="no">manage_accounts</span>
-            <span>ملفي والهوية</span>
+            <span>ملفي والأجهزة</span>
           </button>
           <button type="button" class="ops-nav-btn" data-ops-tab="compasses" id="nav-tab-compasses">
             <span class="material-symbols-rounded" translate="no">category</span>
@@ -118,13 +196,17 @@
             <span class="hide-sm">الموقع العام</span>
           </a>
 
-          <button type="button" class="user-pill" data-ops-tab="profile" title="فتح ملفي الشخصي">
+          <button type="button" class="user-pill" data-ops-tab="profile" title="فتح ملفي الشخصي والأجهزة الموثوقة">
             <img id="current-user-avatar" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="user-pill-avatar">
             <span id="current-user-name" class="hide-sm"></span>
             <span id="current-user-verified" class="material-symbols-rounded verified-icon hidden" translate="no" title="موثق بالشارة الزرقاء">verified</span>
           </button>
 
-          <button type="button" id="logout-btn" class="icon-btn danger-icon-btn" title="تسجيل الخروج">
+          <button type="button" id="lock-session-btn" class="icon-btn" title="قفل الشاشة السريع (مع بقاء الجهاز موثوقاً)">
+            <span class="material-symbols-rounded" translate="no">lock</span>
+          </button>
+
+          <button type="button" id="logout-btn" class="icon-btn danger-icon-btn" title="تسجيل الخروج النهائي من هذا الجهاز">
             <span class="material-symbols-rounded" translate="no">logout</span>
           </button>
         </div>
@@ -149,7 +231,7 @@
     <main class="ops-container ops-main">
 
       <!-- =================================================================
-           التبويب (1): لوحة المتابعة وإدارة المنشورات (معزولة ذكياً حسب الصلاحية)
+           التبويب (1): لوحة المتابعة وإدارة المنشورات (معزولة 100% للصحفي)
            ================================================================= -->
       <section id="tab-dashboard" class="ops-tab-section">
         <div class="stats-grid">
@@ -158,7 +240,7 @@
               <span class="material-symbols-rounded" translate="no">article</span>
             </div>
             <div>
-              <span id="stat-label-published" class="stat-label">المواد المنشورة</span>
+              <span id="stat-label-published" class="stat-label">مقالاتي المنشورة</span>
               <strong id="stat-published-count" class="stat-value">0</strong>
             </div>
           </div>
@@ -178,7 +260,7 @@
               <span class="material-symbols-rounded" translate="no">edit_note</span>
             </div>
             <div>
-              <span id="stat-label-draftOrBreaking" class="stat-label">مسودات وملاحظات</span>
+              <span id="stat-label-draftOrBreaking" class="stat-label">مسوداتي وملاحظاتي</span>
               <strong id="stat-breaking-count" class="stat-value">0</strong>
             </div>
           </div>
@@ -198,7 +280,7 @@
           <div class="panel-header">
             <div class="panel-title-wrap">
               <span class="material-symbols-rounded" translate="no">manage_search</span>
-              <h2 id="dashboard-panel-heading">إدارة المنشورات والمراجعة</h2>
+              <h2 id="dashboard-panel-heading">إدارة مقالاتي ومنشوراتي الخاصة</h2>
             </div>
             <div class="panel-actions">
               <button type="button" id="quick-breaking-trigger-btn" class="btn-danger sm-btn">
@@ -232,7 +314,7 @@
               <option value="all">جميع البوصلات والأقسام</option>
             </select>
 
-            <select id="ops-filter-author" class="form-select">
+            <select id="ops-filter-author" class="form-select hidden">
               <option value="all">جميع الكتّاب</option>
             </select>
           </div>
@@ -272,7 +354,7 @@
             <div class="alert-content">
               <span class="material-symbols-rounded" translate="no">rate_review</span>
               <div>
-                <strong>ملاحظة هيئة التحرير لتعديل هذا المقال:</strong>
+                <strong>ملاحظة القيادة لتعديل هذا المقال:</strong>
                 <p id="editor-rejection-reason"></p>
               </div>
             </div>
@@ -368,7 +450,7 @@
             </div>
 
             <div class="checkboxes-row">
-              <label class="check-pill">
+              <label class="check-pill" id="featured-check-wrap">
                 <input type="checkbox" id="post-is-featured">
                 <span class="material-symbols-rounded" translate="no">star</span>
                 <span>تثبيت في التغطية الرئيسية البارزة (Hero)</span>
@@ -403,11 +485,10 @@
       </section>
 
       <!-- =================================================================
-           التبويب (3): دفتر الملاحظات الشخصي للصحفي (Journalist Notebook)
+           التبويب (3): دفتر الملاحظات الشخصي للصحفي (معزول 100%)
            ================================================================= -->
       <section id="tab-notebook" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
-          <!-- نموذج كتابة وتعديل ملاحظة شخصية -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -450,7 +531,7 @@
 
               <div class="form-group">
                 <label for="note-content">تفاصيل الملاحظة أو النص المحفوظ *</label>
-                <textarea id="note-content" class="form-textarea" rows="7" required placeholder="دوّن أفكارك، أرقام التواصل، الاقتباسات، أو مسوداتك الخاصة هنا... (ملاحظاتك معزولة وخاصة بك وحدك)"></textarea>
+                <textarea id="note-content" class="form-textarea" rows="7" required placeholder="دوّن أفكارك، أرقام التواصل، الاقتباسات، أو مسوداتك الخاصة هنا... (دفترك معزول تماماً وخاص بك وحدك)"></textarea>
               </div>
 
               <label class="check-pill">
@@ -466,7 +547,6 @@
             </form>
           </div>
 
-          <!-- مساحة عرض وبحث الملاحظات الشخصية -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
@@ -487,120 +567,126 @@
       </section>
 
       <!-- =================================================================
-           التبويب (4): ملفي الشخصي وتوثيق الهوية بالشارة الزرقاء (My Profile & KYC)
+           التبويب (4): ملفي الشخصي، بيانات الدخول، الهوية، والأجهزة الموثوقة
            ================================================================= -->
       <section id="tab-profile" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
-          <!-- بطاقة الهوية الحالية وطلب التوثيق KYC -->
-          <div class="panel-card">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <span class="material-symbols-rounded" translate="no">badge</span>
-                <h2>بطاقتي الصحفية وتوثيق الهوية</h2>
-              </div>
-            </div>
-
-            <div class="my-profile-summary">
-              <img id="my-profile-card-avatar" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="my-profile-lg-avatar">
-              <div class="my-profile-name-row">
-                <h3 id="my-profile-card-name"></h3>
-                <span id="my-profile-card-verified" class="material-symbols-rounded verified-icon hidden" translate="no" title="صحفي موثق بالشارة الزرقاء">verified</span>
-              </div>
-              <p id="my-profile-card-role" class="my-profile-job"></p>
-
-              <!-- تنبيه مراجعة الاسم -->
-              <div id="my-profile-pending-name-box" class="alert-banner alert-warning hidden" style="margin-top:10px;font-size:0.78rem;width:100%;">
-                <div class="alert-content">
-                  <span class="material-symbols-rounded" translate="no">schedule</span>
-                  <span id="my-profile-pending-name-text"></span>
+          <!-- العمود الأيمن: البطاقة الصحفية + توثيق الهوية + الأجهزة الموثوقة -->
+          <div>
+            <div class="panel-card">
+              <div class="panel-header">
+                <div class="panel-title-wrap">
+                  <span class="material-symbols-rounded" translate="no">badge</span>
+                  <h2>بطاقتي الصحفية وتوثيق الهوية</h2>
                 </div>
               </div>
-            </div>
 
-            <hr class="form-divider" style="margin: 18px 0;">
-
-            <!-- قسم توثيق الهوية بالشارة الزرقاء (KYC) مع حماية الهوية بعد التوثيق -->
-            <div id="kyc-verification-section">
-              <h3 class="settings-sub-heading" style="margin-bottom: 8px;">
-                <span class="material-symbols-rounded" style="vertical-align:middle;" translate="no">verified</span>
-                <span>توثيق الهوية الصحفية (الشارة الزرقاء)</span>
-              </h3>
-              <p id="kyc-status-desc" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">
-                تمنح الشارة الزرقاء للصحفيين المعتمدين صلاحية النشر المباشر وتظهر بجانب اسمك وصورتك في جميع مقالاتك بالموقع العام.
-              </p>
-
-              <!-- صندوق الهوية الموثقة والمحمية (يظهر عند توثيق الهوية) -->
-              <div id="kyc-verified-locked-box" class="kyc-locked-box hidden">
-                <div class="kyc-locked-header">
-                  <span class="material-symbols-rounded" translate="no">lock</span>
-                  <strong>هويتك الصحفية موثقة ومحمية</strong>
+              <div class="my-profile-summary">
+                <img id="my-profile-card-avatar" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="my-profile-lg-avatar">
+                <div class="my-profile-name-row">
+                  <h3 id="my-profile-card-name"></h3>
+                  <span id="my-profile-card-verified" class="material-symbols-rounded verified-icon hidden" translate="no" title="صحفي موثق بالشارة الزرقاء">verified</span>
                 </div>
-                <p>لا يمكن تعديل بيانات الهوية الموثقة مباشرة؛ أي تعديل على وثيقة الهوية يُحال فوراً لمراجعة القيادة العليا.</p>
-                <button type="button" id="kyc-update-identity-btn" class="btn-outline sm-btn" style="margin-top:8px;width:100%;">
-                  <span class="material-symbols-rounded" translate="no">sync_lock</span>
-                  <span>طلب تحديث وثيقة الهوية (يُحال للمراجعة)</span>
-                </button>
-              </div>
+                <p id="my-profile-card-role" class="my-profile-job"></p>
 
-              <form id="kyc-request-form" class="ops-form">
-                <div class="form-group">
-                  <label for="kyc-doc-url">رابط صورة البطاقة الصحفية أو إثبات الهوية (أو ارفعها من جهازك) *</label>
-                  <div class="input-with-action">
-                    <input type="url" id="kyc-doc-url" class="form-input" placeholder="https://..." dir="ltr">
-                    <label for="kyc-doc-file" class="btn-outline sm-btn upload-label-btn">
-                      <span class="material-symbols-rounded" translate="no">upload_file</span>
-                      <span>رفع الوثيقة</span>
-                    </label>
-                    <input type="file" id="kyc-doc-file" accept="image/*" class="hidden">
+                <div id="my-profile-pending-name-box" class="alert-banner alert-warning hidden" style="margin-top:10px;font-size:0.78rem;width:100%;">
+                  <div class="alert-content">
+                    <span class="material-symbols-rounded" translate="no">schedule</span>
+                    <span id="my-profile-pending-name-text"></span>
                   </div>
                 </div>
+              </div>
 
-                <div class="form-group">
-                  <label for="kyc-note">بيانات الهوية أو نبذة عن الصفة الصحفية للقيادة *</label>
-                  <textarea id="kyc-note" class="form-textarea" rows="2" placeholder="اكتب رقم الوثيقة أو توضيحاً مختصراً لطلب التوثيق..."></textarea>
+              <hr class="form-divider" style="margin: 18px 0;">
+
+              <!-- قسم توثيق الهوية بالشارة الزرقاء (KYC) -->
+              <div id="kyc-verification-section">
+                <h3 class="settings-sub-heading" style="margin-bottom: 8px;">
+                  <span class="material-symbols-rounded" style="vertical-align:middle;" translate="no">verified</span>
+                  <span>توثيق الهوية الصحفية (الشارة الزرقاء)</span>
+                </h3>
+                <p id="kyc-status-desc" style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">
+                  تمنح الشارة الزرقاء للصحفيين المعتمدين صلاحية النشر المباشر وتظهر بجانب اسمك وصورتك في جميع مقالاتك بالموقع العام.
+                </p>
+
+                <div id="kyc-verified-locked-box" class="kyc-locked-box hidden">
+                  <div class="kyc-locked-header">
+                    <span class="material-symbols-rounded" translate="no">lock</span>
+                    <strong>هويتك الصحفية موثقة ومحمية</strong>
+                  </div>
+                  <p>لا يمكن تعديل الهوية الموثقة مباشرة؛ أي تعديل على وثيقة الهوية يُحال فوراً لمراجعة القيادة العليا.</p>
+                  <button type="button" id="kyc-update-identity-btn" class="btn-outline sm-btn" style="margin-top:8px;width:100%;">
+                    <span class="material-symbols-rounded" translate="no">sync_lock</span>
+                    <span>طلب تحديث وثيقة الهوية (يُحال للمراجعة)</span>
+                  </button>
                 </div>
 
-                <button type="submit" id="kyc-submit-btn" class="btn-primary" style="width:100%;">
-                  <span class="material-symbols-rounded" translate="no">send</span>
-                  <span>إرسال الهوية للمراجعة والتوثيق</span>
+                <form id="kyc-request-form" class="ops-form">
+                  <div class="form-group">
+                    <label for="kyc-doc-url">رابط صورة البطاقة الصحفية أو إثبات الهوية (أو ارفعها) *</label>
+                    <div class="input-with-action">
+                      <input type="url" id="kyc-doc-url" class="form-input" placeholder="https://..." dir="ltr">
+                      <label for="kyc-doc-file" class="btn-outline sm-btn upload-label-btn">
+                        <span class="material-symbols-rounded" translate="no">upload_file</span>
+                        <span>رفع الوثيقة</span>
+                      </label>
+                      <input type="file" id="kyc-doc-file" accept="image/*" class="hidden">
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="kyc-note">بيانات الهوية أو الصفة الصحفية *</label>
+                    <textarea id="kyc-note" class="form-textarea" rows="2" placeholder="اكتب رقم الوثيقة أو توضيحاً مختصراً لطلب التوثيق..."></textarea>
+                  </div>
+
+                  <button type="submit" id="kyc-submit-btn" class="btn-primary" style="width:100%;">
+                    <span class="material-symbols-rounded" translate="no">send</span>
+                    <span>إرسال الهوية للمراجعة والتوثيق</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- بطاقة إدارة الأجهزة الموثوقة ورمز الدخول السريع -->
+            <div class="panel-card">
+              <div class="panel-header">
+                <div class="panel-title-wrap">
+                  <span class="material-symbols-rounded" translate="no">devices</span>
+                  <h2>الأجهزة الموثوقة المتصلة بحسابي</h2>
+                </div>
+                <button type="button" id="revoke-all-devices-btn" class="btn-outline sm-btn danger-icon-btn" title="إلغاء الثقة عن جميع الأجهزة">
+                  <span class="material-symbols-rounded" translate="no">delete_sweep</span>
+                  <span>إزالة الكل</span>
                 </button>
-              </form>
+              </div>
+              <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">
+                هذه قائمة المتصفحات والأجهزة التي سمحت لها بالدخول السريع إلى حسابك. يمكنك حذف أي جهاز في أي وقت.
+              </p>
+              <div id="my-trusted-devices-list" class="trusted-devices-list"></div>
             </div>
           </div>
 
-          <!-- نموذج التعديل الحر للبيانات الشخصية للصحفي -->
+          <!-- العمود الأيسر: تعديل البيانات الشخصية + اسم المستخدم وكلمة المرور ورمز PIN -->
           <div class="panel-card">
             <div class="panel-header">
               <div class="panel-title-wrap">
                 <span class="material-symbols-rounded" translate="no">manage_accounts</span>
-                <h2>تعديل بياناتي الشخصية، صورتي، وبريدي المعتمد</h2>
+                <h2>تعديل بياناتي الشخصية، صورتي، وكلمة المرور</h2>
               </div>
             </div>
 
             <form id="my-profile-form" class="ops-form">
+              <h3 class="settings-sub-heading">1. البيانات الصحفية العامة</h3>
               <div class="form-grid-2">
                 <div class="form-group">
                   <label for="my-prof-name">الاسم الصحفي الظاهر للقراء *</label>
                   <input type="text" id="my-prof-name" class="form-input" required>
-                  <span class="field-hint">حماية الهوية: أي تعديل في الاسم لا يُنشر فوراً، بل يُحال لمراجعة القيادة العليا لاعتماده.</span>
+                  <span class="field-hint">حماية الهوية: أي تعديل في الاسم يُحال لمراجعة القيادة العليا لاعتماده.</span>
                 </div>
 
                 <div class="form-group">
                   <label for="my-prof-job">المسمى المهني / التخصص الصحفي</label>
                   <input type="text" id="my-prof-job" class="form-input" placeholder="مثال: كاتب ومحلل سياسي">
-                </div>
-              </div>
-
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label for="my-prof-email">البريد الإلكتروني المعتمد للدخول (Google Email) *</label>
-                  <input type="email" id="my-prof-email" class="form-input" required dir="ltr">
-                  <span class="field-hint">في حال تغيير بريدك، يُنقل حسابك ومقالاتك وملاحظاتك تلقائياً للبريد الجديد.</span>
-                </div>
-
-                <div class="form-group">
-                  <label for="my-prof-phone">رقم الهاتف والواتساب (مع مفتاح الدولة)</label>
-                  <input type="tel" id="my-prof-phone" class="form-input" placeholder="967770000000" dir="ltr">
                 </div>
               </div>
 
@@ -622,6 +708,35 @@
                 <textarea id="my-prof-bio" class="form-textarea" rows="3" placeholder="اكتب نبذة مهنية موجزة عنك..."></textarea>
               </div>
 
+              <hr class="form-divider">
+
+              <h3 class="settings-sub-heading">2. بيانات تسجيل الدخول والأمان (أنت حر في تعديلها بأي وقت)</h3>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="my-prof-username">اسم المستخدم للدخول (أو البريد الإلكتروني) *</label>
+                  <input type="text" id="my-prof-username" class="form-input" required dir="ltr" placeholder="username or email">
+                  <span class="field-hint">يمكنك وضع بريدك الإلكتروني أو أي اسم مستخدم تفضله للدخول.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="my-prof-password">كلمة المرور الجديدة (اتركها فارغة إذا لم ترد تغييرها)</label>
+                  <input type="text" id="my-prof-password" class="form-input" dir="ltr" placeholder="اكتب كلمة مرور جديدة لتغييرها...">
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="my-prof-pin">رمز الدخول السريع للجهاز الموثوق (4 أرقام - اختياري)</label>
+                  <input type="password" id="my-prof-pin" class="form-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" dir="ltr" placeholder="مثال: 1234 (أو اتركه فارغاً لإلغائه)">
+                  <span class="field-hint">يُطلب منك عند فتح البوابة من جهازك الموثوق لمنع أي متطفل من النشر باسمك.</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="my-prof-phone">رقم الهاتف والواتساب (مع مفتاح الدولة)</label>
+                  <input type="tel" id="my-prof-phone" class="form-input" placeholder="967770000000" dir="ltr">
+                </div>
+              </div>
+
               <div class="form-grid-2">
                 <div class="form-group">
                   <label for="my-prof-x">رابط حساب منصة X (اختياري)</label>
@@ -637,7 +752,7 @@
               <div class="form-actions-bar">
                 <button type="submit" class="btn-primary btn-lg">
                   <span class="material-symbols-rounded" translate="no">save</span>
-                  <span>حفظ وتحديث بياناتي الشخصية</span>
+                  <span>حفظ وتحديث بياناتي وإعدادات الأمان</span>
                 </button>
               </div>
             </form>
@@ -646,7 +761,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (5): إدارة البوصلات والأقسام التخصصية (Compasses Manager)
+           التبويب (5): إدارة البوصلات والأقسام التخصصية (للأدمن الرئيسي فقط)
            ================================================================= -->
       <section id="tab-compasses" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
@@ -745,7 +860,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (6): إدارة الكادر الصحفي، مراجعة الهوية والأسماء، والترحيب (Staff)
+           التبويب (6): إدارة الكادر الصحفي ومراجعة الهوية والأسماء (للأدمن الرئيسي)
            ================================================================= -->
       <section id="tab-staff" class="ops-tab-section hidden">
         <!-- صندوق طلبات توثيق الهوية (KYC) وتعديل الأسماء المعلقة -->
@@ -753,7 +868,7 @@
           <div class="panel-header">
             <div class="panel-title-wrap">
               <span class="material-symbols-rounded" style="color:var(--warning);" translate="no">pending_actions</span>
-              <h2>طلبات توثيق الهوية (KYC) وتعديل الأسماء بانتظار اعتماد القيادة</h2>
+              <h2>طلبات توثيق الهوية (KYC) وتعديل الأسماء بانتظار اعتمادك</h2>
             </div>
           </div>
           <div id="staff-pending-requests-list" class="ops-staff-list"></div>
@@ -764,20 +879,29 @@
             <div class="panel-header">
               <div class="panel-title-wrap">
                 <span class="material-symbols-rounded" translate="no">person_add</span>
-                <h2 id="staff-form-title">إضافة أو تعديل عضو في الكادر الصحفي</h2>
+                <h2 id="staff-form-title">إضافة أو تعديل صحفي في الشبكة</h2>
               </div>
               <button type="button" id="reset-staff-form-btn" class="btn-outline sm-btn">جديد</button>
             </div>
 
             <form id="staff-form" class="ops-form">
-              <div class="form-group">
-                <label for="staff-name">الاسم الكامل للكاتب أو الصحفي *</label>
-                <input type="text" id="staff-name" class="form-input" required placeholder="مثال: أحمد رشاد">
-              </div>
+              <input type="hidden" id="staff-edit-doc-id" value="">
 
               <div class="form-group">
-                <label for="staff-email">البريد الإلكتروني المعتمد لحساب Google (لتسجيل الدخول) *</label>
-                <input type="email" id="staff-email" class="form-input" required placeholder="writer@gmail.com" dir="ltr">
+                <label for="staff-name">الاسم الكامل للكاتب أو الصحفي *</label>
+                <input type="text" id="staff-name" class="form-input" required placeholder="مثال: خالد الحميري">
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="staff-username">اسم المستخدم أو البريد للدخول *</label>
+                  <input type="text" id="staff-username" class="form-input" required placeholder="writer1 أو بريده" dir="ltr">
+                </div>
+
+                <div class="form-group">
+                  <label for="staff-password">كلمة المرور الخاصة بالصحفي *</label>
+                  <input type="text" id="staff-password" class="form-input" required placeholder="كلمة المرور للدخول" dir="ltr">
+                </div>
               </div>
 
               <div class="form-grid-2">
@@ -787,18 +911,9 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="staff-role">الرتبة والصلاحية الإدارية *</label>
-                  <select id="staff-role" class="form-select">
-                    <option value="writer">كاتب / صحفي</option>
-                    <option value="editor">محرر ومراجع صحفي</option>
-                    <option value="admin">قيادة عليا (مدير عام)</option>
-                  </select>
+                  <label for="staff-job-title">المسمى المهني الظاهر للقراء</label>
+                  <input type="text" id="staff-job-title" class="form-input" placeholder="مثال: كاتب ومحلل سياسي">
                 </div>
-              </div>
-
-              <div class="form-group">
-                <label for="staff-job-title">المسمى المهني الظاهر للقراء</label>
-                <input type="text" id="staff-job-title" class="form-input" placeholder="مثال: كاتب ومحلل سياسي">
               </div>
 
               <div class="form-group">
@@ -860,7 +975,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (7): إدارة الإعلانات والرعايات (Ads Manager)
+           التبويب (7): إدارة الإعلانات والرعايات (للأدمن الرئيسي)
            ================================================================= -->
       <section id="tab-ads" class="ops-tab-section hidden">
         <div class="ops-grid-sidebar">
@@ -960,8 +1075,8 @@
                 <li>
                   <span class="material-symbols-rounded" translate="no">verified_user</span>
                   <div>
-                    <strong>أمن الحسابات والمصادر:</strong>
-                    <p>يُحظر مشاركة رابط أو حساب الدخول للبوابة الذكية التحريرية مع أي طرف خارجي، ويلتزم الصحفي بحماية سرية مصادره الخاصة.</p>
+                    <strong>أمن الحسابات والأجهزة الموثوقة:</strong>
+                    <p>لا تفعل خيار "الوثوق بهذا الجهاز" إلا على هاتفك أو حاسوبك الشخصي، واستخدم رمز الدخول السريع (4 أرقام) لحماية حسابك.</p>
                   </div>
                 </li>
                 <li>
@@ -992,7 +1107,7 @@
       </section>
 
       <!-- =================================================================
-           التبويب (9): الإعدادات السيادية النظيفة (Sovereign Settings)
+           التبويب (9): الإعدادات السيادية وبيانات الأدمن الرئيسي (Master Settings)
            ================================================================= -->
       <section id="tab-settings" class="ops-tab-section hidden">
         <div class="panel-card">
